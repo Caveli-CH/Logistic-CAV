@@ -215,8 +215,8 @@ function handleFile(file) {
         return {
           id:       String(r['#'] || (Date.now() + i)),
           name:     r.Cliente    || r.cliente || r.Nombre  || r.nombre || '',
-          address:  r['Direccion'] || r['Direccion'] || r.direccion || '',
-          phone:    String(r['Telefono'] || r['Telefono'] || r.telefono || ''),
+          address:  r['Direcci\u00f3n'] || r['Direccion'] || r.direccion || r.Address || '',
+          phone:    String(r['Tel\u00e9fono'] || r['Telefono'] || r.telefono || r.Phone || ''),
           notes:    nota || r.Notas || r.notas || '',
           total:    Number(r.Total || r.total || 0),
           fecha:    String(r.Fecha || r.fecha || ''),
