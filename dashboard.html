@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caveli - Dashboard Jefe</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--primary:#2d5f4f;--primary-light:#4a8a73;--accent:#f5e6d3;--danger:#d94545;--success:#27ae60;--warning:#e67e22;--text:#333;--border:#ddd;--bg:#f2f4f3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);}
+header{background:var(--primary);color:white;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+header h1{font-size:20px;font-weight:700;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.live-badge{background:#e74c3c;color:white;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;animation:pulse 2s infinite;}
+.live-badge.offline{background:#999;animation:none;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
+.fecha-selector{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:6px 10px;border-radius:6px;font-size:13px;cursor:pointer;}
+.container{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 380px;gap:20px;}
+@media(max-width:900px){.container{grid-template-columns:1fr;}}
+.section{background:white;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+.section h2{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--accent);padding:14px;border-radius:8px;text-align:center;}
+.stat-label{font-size:11px;color:#666;margin-bottom:4px;}
+.stat-value{font-size:24px;font-weight:700;color:var(--primary);}
+.stat-value.money{font-size:18px;}
+#map{width:100%;height:420px;border-radius:8px;background:#e8f0e8;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;overflow:hidden;}
+.chofer-info{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;padding:14px;border-radius:8px;margin-bottom:16px;}
+.chofer-info h3{font-size:13px;opacity:0.85;margin-bottom:4px;}
+.chofer-name{font-size:17px;font-weight:700;}
+.chofer-sub{font-size:12px;opacity:0.85;margin-top:2px;}
+.entregas-list{max-height:500px;overflow-y:auto;}
+.entrega-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.entrega-item:last-child{border-bottom:none;}
+.entrega-num{background:var(--primary);color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.entrega-info{flex:1;}
+.entrega-name{font-weight:700;}
+.entrega-addr{font-size:12px;color:#888;margin-top:1px;}
+.entrega-hora{font-size:11px;color:#aaa;white-space:nowrap;}
+.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dot-entregado{background:var(--success);}
+.dot-parcial{background:var(--warning);}
+.dot-fallido{background:var(--danger);}
+.dot-pendiente{background:#ddd;}
+.entrega-total{font-weight:700;color:var(--primary);font-size:12px;white-space:nowrap;}
+.filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.pill{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid var(--border);background:white;color:#666;}
+.pill.active{border-color:var(--primary);background:var(--primary);color:white;}
+.empty{text-align:center;padding:30px;color:#bbb;font-size:13px;}
+.ultima-act{font-size:11px;color:#999;margin-top:8px;text-align:right;}
+.progress-bar{background:#eee;border-radius:10px;height:8px;margin:10px 0;}
+.progress-fill{background:var(--success);height:8px;border-radius:10px;transition:width 0.5s;}
+.btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-primary{background:var(--primary);color:white;}
+.gps-coords{font-size:11px;color:rgba(255,255,255,0.75);margin-top:4px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#128666; Caveli &mdash; Dashboard</h1>
+  <div class="header-right">
+    <input type="date" class="fecha-selector" id="fecha-selector">
+    <span class="live-badge offline" id="live-badge">&#9679; CONECTANDO...</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- COLUMNA IZQUIERDA: mapa + stats -->
+  <div>
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-label">Clientes hoy</div><div class="stat-value" id="s-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">Entregados</div><div class="stat-value" id="s-comp">-</div></div>
+      <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value" id="s-pend">-</div></div>
+      <div class="stat-card"><div class="stat-label">$ Cobrado</div><div class="stat-value money" id="s-monto">$0</div></div>
+      <div class="stat-card"><div class="stat-label">Eficiencia</div><div class="stat-value" id="s-ef">0%</div></div>
+      <div class="stat-card"><div class="stat-label">Fallidos</div><div class="stat-value" id="s-fall">-</div></div>
+    </div>
+    <div class="section">
+      <h2>&#128506; Ubicacion del chofer (tiempo real)</h2>
+      <div id="map">Cargando mapa...</div>
+      <p class="ultima-act" id="ultima-gps">Ultima actualizacion GPS: -</p>
+    </div>
+  </div>
+
+  <!-- COLUMNA DERECHA: lista de entregas -->
+  <div>
+    <div class="section">
+      <div id="chofer-banner" class="chofer-info" style="display:none">
+        <h3>Chofer en ruta</h3>
+        <div class="chofer-name">Distribuidora Caveli</div>
+        <div class="chofer-sub" id="chofer-sub">-</div>
+        <div class="gps-coords" id="gps-coords"></div>
+      </div>
+      <h2>&#128230; Estado de entregas</h2>
+      <div class="filter-row">
+        <span class="pill active" onclick="setFiltro('todos',this)">Todos</span>
+        <span class="pill" onclick="setFiltro('pendiente',this)">Pendientes</span>
+        <span class="pill" onclick="setFiltro('entregado',this)">Entregados</span>
+        <span class="pill" onclick="setFiltro('fallido',this)">Fallidos</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="entregas-list" id="entregas-list">
+        <div class="empty">Esperando datos del chofer...</div>
+      </div>
+      <p class="ultima-act" id="ultima-datos">Ultima actualizacion: -</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+// ===== CONFIG =====
+var firebaseConfig = {
+  apiKey: "AIzaSyDqVJA3FBtWNybNJElX_NS8x5d1rLiGrls",
+  authDomain: "logistic-cav.firebaseapp.com",
+  projectId: "logistic-cav",
+  storageBucket: "logistic-cav.firebasestorage.app",
+  messagingSenderId: "803512261609",
+  appId: "1:803512261609:web:6e8f11bd95ce6ff5474978"
+};
+
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+// ===== ESTADO LOCAL =====
+var clientes = [], entregas = [], filtro = 'todos';
+var marcadorChofer = null, mapa = null;
+var jornadaId = new Date().toISOString().split('T')[0];
+
+// Selector de fecha
+var sel = document.getElementById('fecha-selector');
+sel.value = jornadaId;
+sel.addEventListener('change', function() {
+  jornadaId = this.value;
+  escucharJornada();
+  escucharGPS();
+});
+
+// ===== MAPA GOOGLE MAPS =====
+function initMap() {
+  mapa = new google.maps.Map(document.getElementById('map'), {
+    center: {lat: -33.0, lng: -71.2},
+    zoom: 12,
+    mapTypeControl: false,
+    streetViewControl: false
+  });
+}
+
+function actualizarMarcador(lat, lng) {
+  if (!mapa) return;
+  var pos = {lat: lat, lng: lng};
+  if (!marcadorChofer) {
+    marcadorChofer = new google.maps.Marker({
+      position: pos, map: mapa,
+      title: 'Chofer',
+      icon: {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><circle cx="18" cy="18" r="16" fill="#2d5f4f" stroke="white" stroke-width="3"/><text x="18" y="24" font-size="16" text-anchor="middle" fill="white">&#128666;</text></svg>'),
+        scaledSize: new google.maps.Size(36, 36)
+      }
+    });
+  } else {
+    marcadorChofer.setPosition(pos);
+  }
+  mapa.panTo(pos);
+}
+
+// ===== ESCUCHAR FIREBASE =====
+function escucharJornada() {
+  db.collection('jornadas').doc(jornadaId).onSnapshot(function(doc) {
+    if (!doc.exists) {
+      clientes = []; entregas = [];
+      renderEstado();
+      document.getElementById('live-badge').textContent = '&#9679; SIN DATOS';
+      document.getElementById('live-badge').className = 'live-badge offline';
+      return;
+    }
+    var data    = doc.data();
+    clientes    = data.clientes   || [];
+    entregas    = data.entregas   || [];
+    var ultima  = data.ultimaActualizacion ? new Date(data.ultimaActualizacion).toLocaleTimeString('es-CL') : '-';
+    document.getElementById('ultima-datos').textContent = 'Ultima actualizacion: ' + ultima;
+    document.getElementById('live-badge').innerHTML = '&#9679; EN VIVO';
+    document.getElementById('live-badge').className = 'live-badge';
+    renderEstado();
+    renderEntregas();
+  }, function(err) {
+    console.error('Firestore error:', err);
+    document.getElementById('live-badge').textContent = '&#9679; ERROR';
+    document.getElementById('live-badge').className = 'live-badge offline';
+  });
+}
+
+function escucharGPS() {
+  db.collection('gps').doc(jornadaId).onSnapshot(function(doc) {
+    if (!doc.exists) return;
+    var data = doc.data();
+    var ts   = data.timestamp ? new Date(data.timestamp).toLocaleTimeString('es-CL') : '-';
+    document.getElementById('ultima-gps').textContent = 'Ultima actualizacion GPS: ' + ts;
+    document.getElementById('gps-coords').textContent = 'Lat: ' + data.lat.toFixed(5) + '  Lng: ' + data.lng.toFixed(5);
+    document.getElementById('chofer-banner').style.display = 'block';
+    document.getElementById('chofer-sub').textContent = 'GPS actualizado: ' + ts;
+
+    if (document.getElementById('map').textContent === 'Cargando mapa...') {
+      document.getElementById('map').innerHTML = '<div style="padding:20px;color:#999">Cargando Google Maps...<br><small>Agrega tu API Key para ver el mapa</small></div>';
+    }
+    actualizarMarcador(data.lat, data.lng);
+  });
+}
+
+// ===== RENDER STATS =====
+function renderEstado() {
+  var comp  = entregas.filter(function(d){return d.status==='entregado';}).length;
+  var fall  = entregas.filter(function(d){return d.status==='fallido';}).length;
+  var pend  = clientes.filter(function(c){return !entregas.filter(function(d){return d.clientId===c.id;})[0];}).length;
+  var mok   = entregas.filter(function(d){return d.status==='entregado';}).reduce(function(s,d){
+    var c=clientes.filter(function(x){return x.id===d.clientId;})[0]; return s+(c?c.total||0:0);
+  },0);
+  var ef = clientes.length>0 ? Math.round((comp/clientes.length)*100) : 0;
+  document.getElementById('s-total').textContent  = clientes.length;
+  document.getElementById('s-comp').textContent   = comp;
+  document.getElementById('s-pend').textContent   = pend;
+  document.getElementById('s-fall').textContent   = fall;
+  document.getElementById('s-monto').textContent  = '$' + mok.toLocaleString('es-CL');
+  document.getElementById('s-ef').textContent     = ef + '%';
+  document.getElementById('progress-fill').style.width = ef + '%';
+}
+
+// ===== RENDER ENTREGAS =====
+function setFiltro(f, el) {
+  filtro = f;
+  document.querySelectorAll('.pill').forEach(function(p){p.classList.remove('active');});
+  if(el) el.classList.add('active');
+  renderEntregas();
+}
+
+function renderEntregas() {
+  var el = document.getElementById('entregas-list');
+  if (clientes.length === 0) { el.innerHTML = '<div class="empty">Esperando datos del chofer...</div>'; return; }
+
+  var getEntrega = function(id) { return entregas.filter(function(d){return d.clientId===id;})[0]; };
+  var list = clientes.filter(function(c) {
+    var d = getEntrega(c.id); var s = d ? d.status : 'pendiente';
+    return filtro === 'todos' || s === filtro;
+  });
+  if (list.length === 0) { el.innerHTML = '<div class="empty">Sin resultados</div>'; return; }
+
+  var dotClass = {entregado:'dot-entregado', parcial:'dot-parcial', fallido:'dot-fallido', pendiente:'dot-pendiente'};
+  var label    = {entregado:'&#10003; Entregado', parcial:'&#9888; Parcial', fallido:'&#10007; Fallido', pendiente:'&#9201; Pendiente'};
+
+  el.innerHTML = list.map(function(c, i) {
+    var d  = getEntrega(c.id);
+    var s  = d ? d.status : 'pendiente';
+    return '<div class="entrega-item">' +
+      '<div class="entrega-num">' + (clientes.indexOf(c)+1) + '</div>' +
+      '<div class="entrega-info">' +
+        '<div class="entrega-name">' + c.name + '</div>' +
+        '<div class="entrega-addr">' + c.address + '</div>' +
+        (d && d.notes ? '<div style="font-size:11px;color:#0066cc;margin-top:2px">' + d.notes + '</div>' : '') +
+      '</div>' +
+      (c.total ? '<div class="entrega-total">$' + Number(c.total).toLocaleString('es-CL') + '</div>' : '') +
+      '<div style="text-align:right">' +
+        '<span class="' + (dotClass[s]||'dot-pendiente') + ' status-dot" style="display:inline-block;margin-bottom:4px"></span><br>' +
+        '<span style="font-size:10px;color:#888">' + (label[s]||s) + '</span>' +
+        (d ? '<br><span class="entrega-hora">' + d.timestamp + '</span>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ===== INICIO =====
+escucharJornada();
+escucharGPS();
+
+// Google Maps se carga si hay API key
+// Si quieres el mapa, reemplaza TU_API_KEY abajo y descomenta:
+// var script = document.createElement('script');
+// script.src = 'https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&callback=initMap';
+// document.head.appendChild(script);
+</script>
+</body>
+</html>
