@@ -17,14 +17,14 @@ header h1{font-size:20px;font-weight:700;}
 .fecha-selector{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:6px 10px;border-radius:6px;font-size:13px;cursor:pointer;}
 .container{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 380px;gap:20px;}
 @media(max-width:900px){.container{grid-template-columns:1fr;}}
-.section{background:white;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+.section{background:white;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.07);margin-bottom:16px;}
 .section h2{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
 .stat-card{background:var(--accent);padding:14px;border-radius:8px;text-align:center;}
 .stat-label{font-size:11px;color:#666;margin-bottom:4px;}
 .stat-value{font-size:24px;font-weight:700;color:var(--primary);}
 .stat-value.money{font-size:18px;}
-#map{width:100%;height:420px;border-radius:8px;background:#e8f0e8;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;overflow:hidden;}
+#map{width:100%;height:320px;border-radius:8px;background:#e8f0e8;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;overflow:hidden;}
 .chofer-info{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;padding:14px;border-radius:8px;margin-bottom:16px;}
 .chofer-info h3{font-size:13px;opacity:0.85;margin-bottom:4px;}
 .chofer-name{font-size:17px;font-weight:700;}
@@ -50,15 +50,34 @@ header h1{font-size:20px;font-weight:700;}
 .ultima-act{font-size:11px;color:#999;margin-top:8px;text-align:right;}
 .progress-bar{background:#eee;border-radius:10px;height:8px;margin:10px 0;}
 .progress-fill{background:var(--success);height:8px;border-radius:10px;transition:width 0.5s;}
-.btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity 0.2s;}
+.btn:hover{opacity:0.85;}
 .btn-primary{background:var(--primary);color:white;}
+.btn-danger{background:var(--danger);color:white;}
+.btn-success{background:var(--success);color:white;}
 .gps-coords{font-size:11px;color:rgba(255,255,255,0.75);margin-top:4px;}
+/* Upload section */
+.upload-zone{border:2px dashed var(--primary);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:background 0.2s;}
+.upload-zone:hover,.upload-zone.drag{background:#f0f8f4;}
+.upload-zone p{font-size:14px;font-weight:600;color:var(--primary);margin:8px 0 4px;}
+.upload-zone small{color:#888;font-size:12px;}
+.upload-icon{font-size:32px;}
+.preview-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.preview-box table{width:100%;border-collapse:collapse;font-size:12px;}
+.preview-box th{background:var(--primary);color:white;padding:8px 10px;text-align:left;}
+.preview-box td{padding:7px 10px;border-bottom:1px solid var(--border);}
+.preview-box tr:last-child td{border-bottom:none;}
+.preview-box tr:nth-child(even){background:#f9f9f9;}
+.alert{padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:10px;}
+.alert-success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
+.alert-error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
+.btn-group{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>&#128666; Caveli &mdash; Dashboard</h1>
+  <h1>&#128666; Caveli &mdash; Dashboard Jefe</h1>
   <div class="header-right">
     <input type="date" class="fecha-selector" id="fecha-selector">
     <span class="live-badge offline" id="live-badge">&#9679; CONECTANDO...</span>
@@ -67,8 +86,27 @@ header h1{font-size:20px;font-weight:700;}
 
 <div class="container">
 
-  <!-- COLUMNA IZQUIERDA: mapa + stats -->
+  <!-- COLUMNA IZQUIERDA -->
   <div>
+
+    <!-- CARGA DE EXCEL -->
+    <div class="section">
+      <h2>&#128196; Cargar clientes del dia</h2>
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon">&#128196;</div>
+        <p>Haz clic o arrastra tu Excel aqui</p>
+        <small>Lee automaticamente la hoja Pendientes &bull; .xlsx / .xls / .csv</small>
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
+      </div>
+      <div id="upload-alert"></div>
+      <div id="preview-box" class="preview-box" style="display:none"></div>
+      <div class="btn-group" id="upload-btns" style="display:none">
+        <button class="btn btn-success" id="btn-publicar" onclick="publicarClientes()">&#9654; Publicar al chofer</button>
+        <button class="btn btn-danger" onclick="cancelarCarga()">&#10005; Cancelar</button>
+      </div>
+    </div>
+
+    <!-- STATS -->
     <div class="stats-grid" id="stats-grid">
       <div class="stat-card"><div class="stat-label">Clientes hoy</div><div class="stat-value" id="s-total">-</div></div>
       <div class="stat-card"><div class="stat-label">Entregados</div><div class="stat-value" id="s-comp">-</div></div>
@@ -77,14 +115,16 @@ header h1{font-size:20px;font-weight:700;}
       <div class="stat-card"><div class="stat-label">Eficiencia</div><div class="stat-value" id="s-ef">0%</div></div>
       <div class="stat-card"><div class="stat-label">Fallidos</div><div class="stat-value" id="s-fall">-</div></div>
     </div>
+
+    <!-- MAPA -->
     <div class="section">
       <h2>&#128506; Ubicacion del chofer (tiempo real)</h2>
-      <div id="map">Cargando mapa...</div>
+      <div id="map">Esperando GPS del chofer...</div>
       <p class="ultima-act" id="ultima-gps">Ultima actualizacion GPS: -</p>
     </div>
   </div>
 
-  <!-- COLUMNA DERECHA: lista de entregas -->
+  <!-- COLUMNA DERECHA -->
   <div>
     <div class="section">
       <div id="chofer-banner" class="chofer-info" style="display:none">
@@ -102,7 +142,7 @@ header h1{font-size:20px;font-weight:700;}
       </div>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
       <div class="entregas-list" id="entregas-list">
-        <div class="empty">Esperando datos del chofer...</div>
+        <div class="empty">Carga clientes para comenzar...</div>
       </div>
       <p class="ultima-act" id="ultima-datos">Ultima actualizacion: -</p>
     </div>
@@ -113,6 +153,8 @@ header h1{font-size:20px;font-weight:700;}
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- SheetJS para leer Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
 // ===== CONFIG =====
@@ -130,6 +172,7 @@ var db = firebase.firestore();
 
 // ===== ESTADO LOCAL =====
 var clientes = [], entregas = [], filtro = 'todos';
+var clientesPendientes = []; // clientes cargados del Excel pero no publicados aun
 var marcadorChofer = null, mapa = null;
 var jornadaId = new Date().toISOString().split('T')[0];
 
@@ -142,6 +185,106 @@ sel.addEventListener('change', function() {
   escucharGPS();
 });
 
+// ===== UPLOAD EXCEL =====
+var uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('click', function() { document.getElementById('file-input').click(); });
+uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', function() { this.classList.remove('drag'); });
+uploadZone.addEventListener('drop', function(e) {
+  e.preventDefault(); this.classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+});
+document.getElementById('file-input').addEventListener('change', function(e) {
+  handleFile(e.target.files[0]);
+  this.value = '';
+});
+
+function handleFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb   = XLSX.read(data, {type: 'array'});
+      var sn   = wb.SheetNames.filter(function(n){return n==='Pendientes';})[0]
+              || wb.SheetNames.filter(function(n){return n==='Detalle';})[0]
+              || wb.SheetNames[0];
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[sn]);
+      clientesPendientes = rows.map(function(r, i) {
+        var nota = [r['Tipo entrega'], r['Estado']].filter(function(v){return v && v !== 'Sin verificar';}).join(' | ');
+        return {
+          id:       String(r['#'] || (Date.now() + i)),
+          name:     r.Cliente    || r.cliente || r.Nombre  || r.nombre || '',
+          address:  r['Direccion'] || r['Direccion'] || r.direccion || '',
+          phone:    String(r['Telefono'] || r['Telefono'] || r.telefono || ''),
+          notes:    nota || r.Notas || r.notas || '',
+          total:    Number(r.Total || r.total || 0),
+          fecha:    String(r.Fecha || r.fecha || ''),
+          vendedor: String(r.Vendedor || r.vendedor || '')
+        };
+      }).filter(function(c){return c.name && c.address;});
+
+      if (clientesPendientes.length === 0) {
+        setAlert('No se encontraron clientes validos en la hoja "' + sn + '"', 'error');
+        return;
+      }
+      setAlert('Hoja: <strong>' + sn + '</strong> &mdash; ' + clientesPendientes.length + ' clientes listos para publicar', 'success');
+      mostrarPreview(clientesPendientes);
+      document.getElementById('upload-btns').style.display = 'flex';
+    } catch(err) {
+      setAlert('Error al leer el archivo: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setAlert(msg, type) {
+  document.getElementById('upload-alert').innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+}
+
+function mostrarPreview(data) {
+  var box = document.getElementById('preview-box');
+  var h = '<table><thead><tr><th>#</th><th>Cliente</th><th>Direccion</th><th>Total</th></tr></thead><tbody>';
+  data.slice(0, 8).forEach(function(c, i) {
+    h += '<tr><td>' + (i+1) + '</td><td>' + c.name + '</td><td>' + c.address + '</td><td>' + (c.total ? '$'+Number(c.total).toLocaleString('es-CL') : '-') + '</td></tr>';
+  });
+  if (data.length > 8) h += '<tr><td colspan="4" style="text-align:center;color:#999">... y ' + (data.length-8) + ' mas</td></tr>';
+  h += '</tbody></table>';
+  box.innerHTML = h;
+  box.style.display = 'block';
+}
+
+function publicarClientes() {
+  if (clientesPendientes.length === 0) return;
+  var btn = document.getElementById('btn-publicar');
+  btn.textContent = 'Publicando...';
+  btn.disabled = true;
+  db.collection('jornadas').doc(jornadaId).set({
+    clientes: clientesPendientes,
+    entregas: [],
+    startTime: null,
+    ultimaActualizacion: new Date().toISOString()
+  }).then(function() {
+    setAlert('&#10003; ' + clientesPendientes.length + ' clientes publicados al chofer', 'success');
+    document.getElementById('upload-btns').style.display = 'none';
+    clientesPendientes = [];
+    btn.textContent = 'Publicar al chofer';
+    btn.disabled = false;
+  }).catch(function(err) {
+    setAlert('Error al publicar: ' + err.message, 'error');
+    btn.textContent = 'Publicar al chofer';
+    btn.disabled = false;
+  });
+}
+
+function cancelarCarga() {
+  clientesPendientes = [];
+  document.getElementById('upload-alert').innerHTML = '';
+  document.getElementById('preview-box').style.display = 'none';
+  document.getElementById('upload-btns').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
 // ===== MAPA GOOGLE MAPS =====
 function initMap() {
   mapa = new google.maps.Map(document.getElementById('map'), {
@@ -153,20 +296,24 @@ function initMap() {
 }
 
 function actualizarMarcador(lat, lng) {
-  if (!mapa) return;
+  if (!mapa) {
+    document.getElementById('map').innerHTML =
+      '<div style="padding:30px;text-align:center">' +
+      '<div style="font-size:28px">&#128506;</div>' +
+      '<div style="font-weight:700;color:#2d5f4f;margin-top:8px">Chofer localizado</div>' +
+      '<div style="color:#666;font-size:13px;margin-top:4px">Lat: ' + lat.toFixed(5) + '  &bull;  Lng: ' + lng.toFixed(5) + '</div>' +
+      '<a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" ' +
+      'style="display:inline-block;margin-top:12px;padding:8px 18px;background:#4285F4;color:white;border-radius:6px;text-decoration:none;font-weight:700;font-size:13px">' +
+      '&#128506; Ver en Google Maps</a></div>';
+    return;
+  }
   var pos = {lat: lat, lng: lng};
   if (!marcadorChofer) {
     marcadorChofer = new google.maps.Marker({
-      position: pos, map: mapa,
-      title: 'Chofer',
-      icon: {
-        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><circle cx="18" cy="18" r="16" fill="#2d5f4f" stroke="white" stroke-width="3"/><text x="18" y="24" font-size="16" text-anchor="middle" fill="white">&#128666;</text></svg>'),
-        scaledSize: new google.maps.Size(36, 36)
-      }
+      position: pos, map: mapa, title: 'Chofer',
+      icon: { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><circle cx="18" cy="18" r="16" fill="#2d5f4f" stroke="white" stroke-width="3"/><text x="18" y="24" font-size="16" text-anchor="middle" fill="white">&#128666;</text></svg>'), scaledSize: new google.maps.Size(36, 36) }
     });
-  } else {
-    marcadorChofer.setPosition(pos);
-  }
+  } else { marcadorChofer.setPosition(pos); }
   mapa.panTo(pos);
 }
 
@@ -175,7 +322,7 @@ function escucharJornada() {
   db.collection('jornadas').doc(jornadaId).onSnapshot(function(doc) {
     if (!doc.exists) {
       clientes = []; entregas = [];
-      renderEstado();
+      renderEstado(); renderEntregas();
       document.getElementById('live-badge').textContent = '&#9679; SIN DATOS';
       document.getElementById('live-badge').className = 'live-badge offline';
       return;
@@ -205,10 +352,6 @@ function escucharGPS() {
     document.getElementById('gps-coords').textContent = 'Lat: ' + data.lat.toFixed(5) + '  Lng: ' + data.lng.toFixed(5);
     document.getElementById('chofer-banner').style.display = 'block';
     document.getElementById('chofer-sub').textContent = 'GPS actualizado: ' + ts;
-
-    if (document.getElementById('map').textContent === 'Cargando mapa...') {
-      document.getElementById('map').innerHTML = '<div style="padding:20px;color:#999">Cargando Google Maps...<br><small>Agrega tu API Key para ver el mapa</small></div>';
-    }
     actualizarMarcador(data.lat, data.lng);
   });
 }
@@ -241,7 +384,7 @@ function setFiltro(f, el) {
 
 function renderEntregas() {
   var el = document.getElementById('entregas-list');
-  if (clientes.length === 0) { el.innerHTML = '<div class="empty">Esperando datos del chofer...</div>'; return; }
+  if (clientes.length === 0) { el.innerHTML = '<div class="empty">Carga y publica clientes para comenzar</div>'; return; }
 
   var getEntrega = function(id) { return entregas.filter(function(d){return d.clientId===id;})[0]; };
   var list = clientes.filter(function(c) {
@@ -253,7 +396,7 @@ function renderEntregas() {
   var dotClass = {entregado:'dot-entregado', parcial:'dot-parcial', fallido:'dot-fallido', pendiente:'dot-pendiente'};
   var label    = {entregado:'&#10003; Entregado', parcial:'&#9888; Parcial', fallido:'&#10007; Fallido', pendiente:'&#9201; Pendiente'};
 
-  el.innerHTML = list.map(function(c, i) {
+  el.innerHTML = list.map(function(c) {
     var d  = getEntrega(c.id);
     var s  = d ? d.status : 'pendiente';
     return '<div class="entrega-item">' +
@@ -276,12 +419,6 @@ function renderEntregas() {
 // ===== INICIO =====
 escucharJornada();
 escucharGPS();
-
-// Google Maps se carga si hay API key
-// Si quieres el mapa, reemplaza TU_API_KEY abajo y descomenta:
-// var script = document.createElement('script');
-// script.src = 'https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&callback=initMap';
-// document.head.appendChild(script);
 </script>
 </body>
 </html>
