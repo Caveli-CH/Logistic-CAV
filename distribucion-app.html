@@ -446,12 +446,20 @@ function startGPS() {
   gpsInterval = setInterval(function() {
     navigator.geolocation.getCurrentPosition(function(pos) {
       try {
-        db.collection('gps').doc(jornadaId).set({
+        var punto = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
+          ts:  new Date().toISOString()
+        };
+        // set con merge: actualiza posicion actual Y acumula en array rastro
+        db.collection('gps').doc(jornadaId).set({
+          lat:       punto.lat,
+          lng:       punto.lng,
           precision: pos.coords.accuracy,
-          timestamp: new Date().toISOString()
-        });
+          timestamp: punto.ts,
+          chofer:    nombreChofer || 'Chofer',
+          rastro:    firebase.firestore.FieldValue.arrayUnion(punto)
+        }, { merge: true });
       } catch(e) {}
     }, function() {}, { enableHighAccuracy: true, timeout: 8000 });
   }, 15000);

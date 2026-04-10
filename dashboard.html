@@ -354,25 +354,6 @@ function actualizarMarcador(lat, lng) {
     marcadorChofer.setPosition(pos);
   }
   mapa.panTo(pos);
-
-  // Rastro de ruta
-  rastro.push(pos);
-  if (polyline) {
-    polyline.setMap(null);
-  }
-  polyline = new google.maps.Polyline({
-    path: rastro,
-    geodesic: true,
-    strokeColor: '#2d5f4f',
-    strokeOpacity: 0.7,
-    strokeWeight: 4,
-    map: mapa
-  });
-
-  // Info rastro
-  var ri = document.getElementById('rastro-info');
-  ri.style.display = 'block';
-  ri.textContent = 'Rastro: ' + rastro.length + ' puntos registrados en esta sesion';
 }
 
 function agregarMarcadoresEntrega() {
@@ -449,12 +430,40 @@ function escucharGPS() {
     if (!doc.exists) return;
     var data = doc.data();
     var ts   = data.timestamp ? new Date(data.timestamp).toLocaleTimeString('es-CL') : '-';
+
+    // Actualizar info del chofer
     document.getElementById('ultima-gps').textContent = 'Ultima actualizacion GPS: ' + ts;
     document.getElementById('gps-coords').textContent = 'Lat: ' + data.lat.toFixed(5) + '  Lng: ' + data.lng.toFixed(5);
     document.getElementById('chofer-banner').style.display = 'block';
     document.getElementById('chofer-sub').textContent = 'GPS actualizado: ' + ts;
+    if (data.chofer) document.getElementById('chofer-nombre').textContent = data.chofer;
+
+    // Reconstruir rastro completo desde Firestore (sobrevive al refresh)
+    var puntosFirestore = data.rastro || [];
+    if (puntosFirestore.length > 0) {
+      rastro = puntosFirestore.map(function(p) { return {lat: p.lat, lng: p.lng}; });
+      dibujarRastro();
+    }
+
+    // Mover marcador a posicion actual
     actualizarMarcador(data.lat, data.lng);
   });
+}
+
+function dibujarRastro() {
+  if (!mapa || rastro.length === 0) return;
+  if (polyline) polyline.setMap(null);
+  polyline = new google.maps.Polyline({
+    path: rastro,
+    geodesic: true,
+    strokeColor: '#2d5f4f',
+    strokeOpacity: 0.75,
+    strokeWeight: 4,
+    map: mapa
+  });
+  var ri = document.getElementById('rastro-info');
+  ri.style.display = 'block';
+  ri.textContent = 'Recorrido del dia: ' + rastro.length + ' puntos GPS registrados';
 }
 
 // ===== RENDER STATS =====
