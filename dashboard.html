@@ -101,8 +101,25 @@ header h1{font-size:20px;font-weight:700;}
       <div id="upload-alert"></div>
       <div id="preview-box" class="preview-box" style="display:none"></div>
       <div class="btn-group" id="upload-btns" style="display:none">
-        <button class="btn btn-success" id="btn-publicar" onclick="publicarClientes()">&#9654; Publicar al chofer</button>
-        <button class="btn btn-danger" onclick="cancelarCarga()">&#10005; Cancelar</button>
+        <button class="btn btn-success" id="btn-publicar" onclick="confirmarPublicar()">&#9654; Publicar al chofer</button>
+        <button class="btn btn-secondary" onclick="cancelarCarga()">&#10005; Cancelar</button>
+      </div>
+      <div class="btn-group" id="republicar-btns" style="display:none;margin-top:12px">
+        <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">&#128196; Cargar nuevo Excel</button>
+        <button class="btn btn-danger" onclick="confirmarNuevaJornada()">&#8635; Nueva jornada</button>
+      </div>
+    </div>
+
+    <!-- CONFIRM OVERLAY -->
+    <div id="confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:20px">
+      <div style="background:white;border-radius:14px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.3)">
+        <div style="font-size:36px;margin-bottom:12px" id="confirm-icon">&#9888;</div>
+        <h3 style="font-size:17px;font-weight:700;margin-bottom:8px" id="confirm-title">Confirmar</h3>
+        <p style="font-size:14px;color:#666;margin-bottom:24px" id="confirm-msg"></p>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary" style="flex:1" onclick="cerrarConfirm()">Cancelar</button>
+          <button class="btn btn-danger" style="flex:1" id="confirm-ok-btn">Confirmar</button>
+        </div>
       </div>
     </div>
 
@@ -146,6 +163,9 @@ header h1{font-size:20px;font-weight:700;}
         <div class="empty">Carga clientes para comenzar...</div>
       </div>
       <p class="ultima-act" id="ultima-datos">Ultima actualizacion: -</p>
+      <div style="margin-top:12px" id="reporte-btns" style="display:none">
+        <button class="btn btn-primary" style="width:100%" onclick="descargarReporte()">&#11015; Descargar reporte CSV</button>
+      </div>
     </div>
   </div>
 
@@ -412,6 +432,7 @@ function escucharJornada() {
     document.getElementById('live-badge').className = 'live-badge';
     renderEstado();
     renderEntregas();
+    actualizarBotonesJornada();
   }, function(err) {
     console.error('Firestore error:', err);
     document.getElementById('live-badge').textContent = '&#9679; ERROR';
@@ -490,6 +511,109 @@ function renderEntregas() {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+// ===== REPUBLICAR / NUEVA JORNADA =====
+function confirmarPublicar() {
+  if (clientes.length > 0) {
+    // Ya hay clientes publicados — pedir confirmacion
+    abrirConfirm(
+      '&#9888;',
+      'Reemplazar clientes',
+      'Ya hay ' + clientes.length + ' clientes publicados para hoy. El chofer perdera la lista actual y recibira la nueva.',
+      publicarClientes
+    );
+  } else {
+    publicarClientes();
+  }
+}
+
+function confirmarNuevaJornada() {
+  abrirConfirm(
+    '&#128465;',
+    'Nueva jornada',
+    'Se borraran todos los clientes y entregas del dia ' + jornadaId + '. Esta accion no se puede deshacer.',
+    ejecutarNuevaJornada
+  );
+}
+
+function ejecutarNuevaJornada() {
+  cerrarConfirm();
+  db.collection('jornadas').doc(jornadaId).delete().then(function() {
+    db.collection('gps').doc(jornadaId).delete();
+    clientes = []; entregas = [];
+    cancelarCarga();
+    document.getElementById('republicar-btns').style.display = 'none';
+    document.getElementById('reporte-btns').style.display = 'none';
+    renderEstado(); renderEntregas();
+    document.getElementById('live-badge').textContent = String.fromCharCode(9679) + ' SIN DATOS';
+    document.getElementById('live-badge').className = 'live-badge offline';
+    // Limpiar mapa
+    rastro = [];
+    if (polyline) { polyline.setMap(null); polyline = null; }
+    if (marcadorChofer) { marcadorChofer.setMap(null); marcadorChofer = null; }
+    document.getElementById('rastro-info').style.display = 'none';
+    document.getElementById('chofer-banner').style.display = 'none';
+  }).catch(function(err) {
+    alert('Error al borrar: ' + err.message);
+  });
+}
+
+function abrirConfirm(icono, titulo, msg, callback) {
+  document.getElementById('confirm-icon').innerHTML  = icono;
+  document.getElementById('confirm-title').textContent = titulo;
+  document.getElementById('confirm-msg').textContent   = msg;
+  document.getElementById('confirm-ok-btn').onclick = function() {
+    cerrarConfirm();
+    callback();
+  };
+  var ov = document.getElementById('confirm-overlay');
+  ov.style.display = 'flex';
+}
+
+function cerrarConfirm() {
+  document.getElementById('confirm-overlay').style.display = 'none';
+}
+
+document.getElementById('confirm-overlay').addEventListener('click', function(e) {
+  if (e.target === this) cerrarConfirm();
+});
+
+// Mostrar botones republicar cuando ya hay datos publicados
+function actualizarBotonesJornada() {
+  var tieneClientes = clientes.length > 0;
+  document.getElementById('republicar-btns').style.display = tieneClientes ? 'flex' : 'none';
+  document.getElementById('reporte-btns').style.display    = entregas.length > 0 ? 'block' : 'none';
+}
+
+// ===== REPORTE CSV DESDE DASHBOARD =====
+function descargarReporte() {
+  if (clientes.length === 0) return;
+  var fecha = jornadaId;
+  var comp  = entregas.filter(function(d){return d.status==='entregado';}).length;
+  var rows  = ['#,Cliente,Direccion,Telefono,Estado,Total,Hora,Notas'];
+  clientes.forEach(function(c, i) {
+    var d = entregas.filter(function(x){return x.clientId===c.id;})[0] || {};
+    rows.push(
+      (i+1) + ',' +
+      '"' + (c.name    || '') + '",' +
+      '"' + (c.address || '') + '",' +
+      '"' + (c.phone   || '') + '",' +
+      '"' + (d.status  || 'pendiente') + '",' +
+      '"' + (c.total   || 0) + '",' +
+      '"' + (d.timestamp || '-') + '",' +
+      '"' + (d.notes   || '') + '"'
+    );
+  });
+  var mok = entregas.filter(function(d){return d.status==='entregado';}).reduce(function(s,d){
+    var c=clientes.filter(function(x){return x.id===d.clientId;})[0]; return s+(c?c.total||0:0);
+  },0);
+  var resumen = '\n\nResumen,' + fecha + '\nEntregados,' + comp + '/' + clientes.length + '\n$ Cobrado,$' + mok.toLocaleString('es-CL');
+  var csv = 'Distribuidora Caveli - Reporte\nFecha: ' + fecha + '\n\n' + rows.join('\n') + resumen;
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'reporte-caveli-' + fecha + '.csv';
+  a.click();
 }
 
 // ===== INICIO =====
