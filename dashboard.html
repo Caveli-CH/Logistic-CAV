@@ -146,8 +146,8 @@ header h1{font-size:20px;font-weight:700;}
   <div>
     <div class="section">
       <div id="chofer-banner" class="chofer-info" style="display:none">
-        <h3>Chofer en ruta</h3>
-        <div class="chofer-name">Distribuidora Caveli</div>
+        <h3>&#128100; Chofer en ruta</h3>
+        <div class="chofer-name" id="chofer-nombre">-</div>
         <div class="chofer-sub" id="chofer-sub">-</div>
         <div class="gps-coords" id="gps-coords"></div>
       </div>
@@ -430,6 +430,10 @@ function escucharJornada() {
     document.getElementById('ultima-datos').textContent = 'Ultima actualizacion: ' + ultima;
     document.getElementById('live-badge').innerHTML = '&#9679; EN VIVO';
     document.getElementById('live-badge').className = 'live-badge';
+    if (data.chofer) {
+      document.getElementById('chofer-nombre').textContent = data.chofer;
+      document.getElementById('chofer-banner').style.display = 'block';
+    }
     renderEstado();
     renderEntregas();
     actualizarBotonesJornada();

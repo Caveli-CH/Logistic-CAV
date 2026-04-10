@@ -144,7 +144,10 @@ tr:hover td{background:#f9f9f9;}
 <header>
   <div class="header-top">
     <h1>&#128666; Distribuidora Caveli</h1>
-    <button class="btn-nj" onclick="confirmarNuevaJornada()">&#8635; Nueva jornada</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-nj" style="font-size:11px;padding:5px 10px;opacity:0.75" onclick="cambiarChofer()" title="Cambiar chofer">&#128100; Cambiar</button>
+      <button class="btn-nj" onclick="confirmarNuevaJornada()">&#8635; Nueva jornada</button>
+    </div>
   </div>
   <div class="header-stats">
     <div class="stat"><div class="stat-label">Clientes hoy</div><div class="stat-value" id="stat-total">0</div></div>
@@ -242,6 +245,22 @@ tr:hover td{background:#f9f9f9;}
     </div>
   </div>
 
+</div>
+
+<!-- MODAL BIENVENIDA / IDENTIFICACION -->
+<div class="modal" id="modal-bienvenida" style="display:flex;background:rgba(0,0,0,0.7)">
+  <div class="modal-content" style="border-radius:16px;max-width:380px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:48px">&#128666;</div>
+      <h2 style="font-size:20px;color:var(--primary);margin-top:8px">Distribuidora Caveli</h2>
+      <p style="font-size:14px;color:#666;margin-top:6px">Ingresa tu nombre para comenzar</p>
+    </div>
+    <div class="form-group">
+      <label>Tu nombre</label>
+      <input type="text" id="input-chofer-nombre" placeholder="Ej: Carlos Mendoza" autocomplete="name" style="font-size:16px">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="guardarNombreChofer()" style="margin-top:8px">Entrar &#10132;</button>
+  </div>
 </div>
 
 <div class="modal" id="delivery-modal">
@@ -413,7 +432,8 @@ function syncFirebase() {
   db.collection('jornadas').doc(jornadaId).update({
     entregas: deliveries,
     startTime: startTime ? startTime.toISOString() : null,
-    ultimaActualizacion: new Date().toISOString()
+    ultimaActualizacion: new Date().toISOString(),
+    chofer: nombreChofer || 'Chofer'
   }).catch(function(e) { console.warn('Sync queued (offline):', e.code); });
 }
 
@@ -440,6 +460,51 @@ function startGPS() {
 function stopGPS() {
   if (gpsInterval) { clearInterval(gpsInterval); gpsInterval = null; }
 }
+
+// ===== NOMBRE CHOFER =====
+var nombreChofer = '';
+
+function iniciarIdentificacion() {
+  nombreChofer = localStorage.getItem('caveli_chofer') || '';
+  if (nombreChofer) {
+    // Ya tiene nombre guardado — mostrar en header y entrar directo
+    document.getElementById('modal-bienvenida').style.display = 'none';
+    mostrarNombreEnHeader();
+  } else {
+    // Primera vez — mostrar modal
+    document.getElementById('modal-bienvenida').style.display = 'flex';
+    setTimeout(function() {
+      document.getElementById('input-chofer-nombre').focus();
+    }, 300);
+  }
+}
+
+function guardarNombreChofer() {
+  var nombre = document.getElementById('input-chofer-nombre').value.trim();
+  if (!nombre) { document.getElementById('input-chofer-nombre').focus(); return; }
+  nombreChofer = nombre;
+  localStorage.setItem('caveli_chofer', nombre);
+  document.getElementById('modal-bienvenida').style.display = 'none';
+  mostrarNombreEnHeader();
+  showToast('Bienvenido, ' + nombre, 'success');
+}
+
+function mostrarNombreEnHeader() {
+  var h1 = document.querySelector('header h1');
+  if (h1) h1.textContent = String.fromCharCode(128666) + ' ' + nombreChofer;
+}
+
+function cambiarChofer() {
+  localStorage.removeItem('caveli_chofer');
+  nombreChofer = '';
+  document.getElementById('input-chofer-nombre').value = '';
+  document.getElementById('modal-bienvenida').style.display = 'flex';
+  setTimeout(function() { document.getElementById('input-chofer-nombre').focus(); }, 200);
+}
+
+document.getElementById('input-chofer-nombre').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') guardarNombreChofer();
+});
 
 // ===== ESTADO =====
 var clients = [], deliveries = [], startTime = null, timerInterval = null;
@@ -756,11 +821,11 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ===== INICIO =====
+iniciarIdentificacion();
 initFirebase();
 updateAll();
 if(startTime&&!timerInterval) startTimer();
 if(startTime&&!gpsInterval)   startGPS();
-// Estado inicial de conexion
 setConexion(navigator.onLine);
 
 </script>
