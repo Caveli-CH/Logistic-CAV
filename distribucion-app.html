@@ -308,6 +308,14 @@ tr:hover td{background:#f9f9f9;}
           &#128247; Tomar foto / Seleccionar imagen
         </button>
       </div>
+      <div class="form-group">
+        <label>Firma del cliente (opcional)</label>
+        <canvas id="firma-canvas" width="100%" style="width:100%;height:130px;border:2px solid var(--border);border-radius:8px;background:white;touch-action:none;cursor:crosshair;display:block"></canvas>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button type="button" class="btn btn-secondary" style="flex:1;padding:7px" onclick="borrarFirma()">&#10005; Borrar firma</button>
+          <span id="firma-estado" style="font-size:12px;color:#888;align-self:center;flex:1;text-align:right"></span>
+        </div>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
         <button type="submit" class="btn btn-success">&#10003; Guardar</button>
@@ -732,9 +740,69 @@ function openModal(clientId) {
     document.getElementById('foto-img').src = '';
   }
   document.getElementById('d-foto').value = '';
+  // Iniciar canvas de firma
+  setTimeout(function() {
+    iniciarFirma();
+    // Si ya tenia firma, mostrarla
+    if (d && d.firma) {
+      var img = new Image();
+      img.onload = function() { firmaCtx.drawImage(img, 0, 0); firmaTieneTrazo = true; document.getElementById('firma-estado').textContent = 'Firma registrada'; };
+      img.src = d.firma;
+    }
+  }, 50);
   document.getElementById('delivery-modal').classList.add('show');
 }
 function closeModal() { document.getElementById('delivery-modal').classList.remove('show'); }
+
+// ===== FIRMA DIGITAL =====
+var firmaCanvas, firmaCtx, firmaActiva = false, firmaTieneTrazo = false;
+
+function iniciarFirma() {
+  firmaCanvas = document.getElementById('firma-canvas');
+  if (!firmaCanvas) return;
+  // Ajustar tamaño real del canvas al CSS
+  firmaCanvas.width  = firmaCanvas.offsetWidth  || 300;
+  firmaCanvas.height = 130;
+  firmaCtx = firmaCanvas.getContext('2d');
+  firmaCtx.strokeStyle = '#1a1a2e';
+  firmaCtx.lineWidth   = 2.5;
+  firmaCtx.lineCap     = 'round';
+  firmaCtx.lineJoin    = 'round';
+  firmaTieneTrazo = false;
+  document.getElementById('firma-estado').textContent = '';
+
+  function getXY(e) {
+    var r = firmaCanvas.getBoundingClientRect();
+    var src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * (firmaCanvas.width / r.width),
+             y: (src.clientY - r.top)  * (firmaCanvas.height / r.height) };
+  }
+  firmaCanvas.onmousedown  = firmaCanvas.ontouchstart = function(e) {
+    e.preventDefault(); firmaActiva = true;
+    var p = getXY(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x, p.y);
+  };
+  firmaCanvas.onmousemove  = firmaCanvas.ontouchmove  = function(e) {
+    e.preventDefault(); if (!firmaActiva) return;
+    var p = getXY(e); firmaCtx.lineTo(p.x, p.y); firmaCtx.stroke();
+    firmaTieneTrazo = true;
+    document.getElementById('firma-estado').textContent = 'Firma registrada';
+  };
+  firmaCanvas.onmouseup = firmaCanvas.ontouchend = function(e) {
+    e.preventDefault(); firmaActiva = false;
+  };
+}
+
+function borrarFirma() {
+  if (!firmaCtx) return;
+  firmaCtx.clearRect(0, 0, firmaCanvas.width, firmaCanvas.height);
+  firmaTieneTrazo = false;
+  document.getElementById('firma-estado').textContent = '';
+}
+
+function obtenerFirmaBase64() {
+  if (!firmaTieneTrazo || !firmaCanvas) return '';
+  return firmaCanvas.toDataURL('image/png');
+}
 
 // ===== FOTO =====
 var fotoBase64 = '';
@@ -781,7 +849,8 @@ function saveDelivery() {
     status:    status,
     notes:     notes,
     timestamp: new Date().toLocaleTimeString('es-CL'),
-    foto:      fotoBase64 || ''
+    foto:      fotoBase64 || '',
+    firma:     obtenerFirmaBase64()
   };
   if (idx >= 0) deliveries[idx] = rec; else deliveries.push(rec);
   save(); updateAll(); return true;
