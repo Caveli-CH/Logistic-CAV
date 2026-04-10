@@ -128,6 +128,15 @@ tr:hover td{background:#f9f9f9;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .toast.success{background:var(--success);}
 .toast.error{background:var(--danger);}
+.conexion-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:7px 16px;font-size:12px;font-weight:600;transition:all 0.3s;}
+.conexion-bar.online{background:#d4edda;color:#155724;}
+.conexion-bar.offline{background:#f8d7da;color:#721c24;}
+.conexion-bar.syncing{background:#fff3cd;color:#856404;}
+.conexion-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.conexion-bar.online .conexion-dot{background:#27ae60;}
+.conexion-bar.offline .conexion-dot{background:#d94545;animation:pulse 1s infinite;}
+.conexion-bar.syncing .conexion-dot{background:#e67e22;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
 </style>
 </head>
 <body>
@@ -144,6 +153,11 @@ tr:hover td{background:#f9f9f9;}
     <div class="stat"><div class="stat-label">Tiempo ruta</div><div class="stat-value" id="stat-tiempo">00:00</div></div>
   </div>
 </header>
+
+<div class="conexion-bar online" id="conexion-bar">
+  <span class="conexion-dot"></span>
+  <span id="conexion-txt">Conectado</span>
+</div>
 
 <div class="tabs">
   <button class="tab active" id="tab-btn-carga" onclick="switchTab('carga',this)">&#128196; Cargar</button>
@@ -288,10 +302,20 @@ var firebaseConfig = {
 
 // ===== FIREBASE INIT =====
 var fbApp, db, jornadaId, clientesListener;
+var pendingSyncs = 0;
+
 function initFirebase() {
   try {
     fbApp = firebase.initializeApp(firebaseConfig);
     db    = firebase.firestore();
+
+    // OFFLINE: activar persistencia — Firestore guarda y sincroniza automaticamente
+    db.enablePersistence({synchronizeTabs: false}).then(function() {
+      console.log('Persistencia offline activada');
+    }).catch(function(err) {
+      console.warn('Persistencia offline no disponible:', err.code);
+    });
+
     jornadaId = new Date().toISOString().split('T')[0];
     console.log('Firebase OK, jornada:', jornadaId);
     escucharClientes();
@@ -303,6 +327,40 @@ function initFirebase() {
     document.getElementById('fb-estado').style.color = '#d94545';
   }
 }
+
+// ===== MONITOR DE CONEXION =====
+function setConexion(online) {
+  var bar = document.getElementById('conexion-bar');
+  var txt = document.getElementById('conexion-txt');
+  if (online) {
+    bar.className = 'conexion-bar online';
+    txt.textContent = pendingSyncs > 0
+      ? 'Sincronizando ' + pendingSyncs + ' cambio(s)...'
+      : 'Conectado';
+    if (pendingSyncs > 0) {
+      bar.className = 'conexion-bar syncing';
+      // Dar tiempo a Firebase para sincronizar
+      setTimeout(function() {
+        pendingSyncs = 0;
+        bar.className = 'conexion-bar online';
+        txt.textContent = 'Conectado - todo sincronizado';
+        setTimeout(function() { txt.textContent = 'Conectado'; }, 3000);
+      }, 4000);
+    }
+  } else {
+    bar.className = 'conexion-bar offline';
+    txt.textContent = 'Sin internet - cambios guardados localmente';
+  }
+}
+
+window.addEventListener('online',  function() {
+  setConexion(true);
+  if (pendingSyncs > 0) showToast('Conexion restaurada - sincronizando...', 'success');
+});
+window.addEventListener('offline', function() {
+  setConexion(false);
+  showToast('Sin internet - entregas guardadas en el celular', 'error');
+});
 
 // Escuchar clientes asignados por el jefe desde Firestore
 function escucharClientes() {
@@ -345,13 +403,18 @@ function escucharClientes() {
 // Guardar solo entregas en Firebase (clientes los maneja el jefe)
 function syncFirebase() {
   if (!db) return;
-  try {
-    db.collection('jornadas').doc(jornadaId).update({
-      entregas: deliveries,
-      startTime: startTime ? startTime.toISOString() : null,
-      ultimaActualizacion: new Date().toISOString()
-    });
-  } catch(e) { console.warn('Sync error:', e); }
+  if (!navigator.onLine) {
+    // Sin internet: incrementar contador de pendientes
+    pendingSyncs++;
+    var txt = document.getElementById('conexion-txt');
+    if (txt) txt.textContent = 'Sin internet - ' + pendingSyncs + ' cambio(s) pendiente(s)';
+  }
+  // Firebase guarda localmente y sincroniza cuando vuelva el internet
+  db.collection('jornadas').doc(jornadaId).update({
+    entregas: deliveries,
+    startTime: startTime ? startTime.toISOString() : null,
+    ultimaActualizacion: new Date().toISOString()
+  }).catch(function(e) { console.warn('Sync queued (offline):', e.code); });
 }
 
 // GPS: enviar posicion del chofer a Firebase
@@ -697,6 +760,8 @@ initFirebase();
 updateAll();
 if(startTime&&!timerInterval) startTimer();
 if(startTime&&!gpsInterval)   startGPS();
+// Estado inicial de conexion
+setConexion(navigator.onLine);
 
 </script>
 <script>
