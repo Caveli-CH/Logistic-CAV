@@ -220,6 +220,14 @@ tr:hover td{background:#f9f9f9;}
         <button class="btn btn-primary btn-full" onclick="startRoute()" id="btn-start">&#9654; Comenzar ruta</button>
         <button class="btn btn-maps btn-full" onclick="openFullRouteInMaps()">&#128506; Abrir todo en Google Maps</button>
       </div>
+      <div id="optimizar-box" style="display:none;margin-top:12px;background:#f0f8f4;border:1px solid #b2dfc4;border-radius:8px;padding:14px">
+        <div style="font-size:13px;font-weight:700;color:#2d5f4f;margin-bottom:8px">&#128200; Optimizacion de ruta disponible</div>
+        <div id="optimizar-info" style="font-size:12px;color:#555;margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-success" style="flex:1" onclick="optimizarRuta()">&#128200; Optimizar orden</button>
+          <button class="btn btn-secondary" style="flex:1" id="btn-restaurar" onclick="restaurarOrden()" style="display:none">&#8635; Orden original</button>
+        </div>
+      </div>
       <div id="gps-status-bar" class="gps-status-bar gps-inactivo" style="margin-top:14px;border-radius:8px;display:none">
         <div style="display:flex;align-items:center">
           <span class="gps-dot"></span>
@@ -435,7 +443,11 @@ function escucharClientes() {
       // Cargar entregas guardadas localmente si existen
       loadEntregas();
       updateAll();
-      showToast(clients.length + ' clientes recibidos del jefe', 'success');
+      actualizarBoxOptimizar();
+      var conCoords = clients.filter(function(c){return c.lat&&c.lng;}).length;
+      var msg = clients.length + ' clientes recibidos del jefe';
+      if (conCoords > 0) msg += ' (' + conCoords + ' con coords para optimizar)';
+      showToast(msg, 'success');
     }
     // Sync entregas que vienen del servidor (si el jefe reinicio)
     var entregasServer = data.entregas || [];
@@ -870,6 +882,78 @@ function saveAndNext() {
   else showToast('Todas las entregas completadas!', 'success');
 }
 
+// ===== OPTIMIZACION DE RUTA =====
+var clientesOrdenOriginal = null;
+
+function distanciaKm(a, b) {
+  // Formula de Haversine
+  var R = 6371;
+  var dLat = (b.lat - a.lat) * Math.PI / 180;
+  var dLng = (b.lng - a.lng) * Math.PI / 180;
+  var sinLat = Math.sin(dLat/2);
+  var sinLng = Math.sin(dLng/2);
+  var x = sinLat*sinLat + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*sinLng*sinLng;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
+function vecinoMasCercano(lista) {
+  // Partir desde el primer cliente (posicion 0)
+  var pendientes = lista.slice();
+  var ordenado   = [pendientes.shift()];
+  while (pendientes.length > 0) {
+    var ultimo = ordenado[ordenado.length - 1];
+    var minDist = Infinity, minIdx = 0;
+    pendientes.forEach(function(c, i) {
+      if (!c.lat || !c.lng) return; // sin coords, dejar al final
+      var d = distanciaKm(ultimo, c);
+      if (d < minDist) { minDist = d; minIdx = i; }
+    });
+    ordenado.push(pendientes.splice(minIdx, 1)[0]);
+  }
+  return ordenado;
+}
+
+function optimizarRuta() {
+  var conCoords = clients.filter(function(c){ return c.lat && c.lng; });
+  if (conCoords.length < 2) {
+    showToast('No hay suficientes coordenadas para optimizar', 'error'); return;
+  }
+  clientesOrdenOriginal = clients.slice(); // guardar original
+  clients = vecinoMasCercano(clients.slice());
+  save();
+  document.getElementById('btn-restaurar').style.display = 'block';
+  renderRuta(); updateAll();
+  showToast('Ruta optimizada — ' + conCoords.length + ' paradas ordenadas', 'success');
+}
+
+function restaurarOrden() {
+  if (!clientesOrdenOriginal) return;
+  clients = clientesOrdenOriginal.slice();
+  clientesOrdenOriginal = null;
+  save(); renderRuta(); updateAll();
+  document.getElementById('btn-restaurar').style.display = 'none';
+  showToast('Orden original restaurado', 'success');
+}
+
+function actualizarBoxOptimizar() {
+  var box = document.getElementById('optimizar-box');
+  var info = document.getElementById('optimizar-info');
+  if (!box) return;
+  var conCoords = clients.filter(function(c){ return c.lat && c.lng; }).length;
+  if (conCoords >= 2) {
+    box.style.display = 'block';
+    info.textContent = conCoords + ' de ' + clients.length + ' clientes tienen coordenadas GPS para optimizar.';
+    if (conCoords < clients.length) {
+      info.textContent += ' ' + (clients.length - conCoords) + ' sin coordenadas se colocan al final.';
+    }
+  } else {
+    box.style.display = 'none';
+  }
+  if (clientesOrdenOriginal) {
+    document.getElementById('btn-restaurar').style.display = 'block';
+  }
+}
+
 // ===== RUTA =====
 function renderRuta() {
   var pending = clients.filter(function(c) { return !getD(c.id); });
@@ -908,6 +992,7 @@ function startRoute() {
     startGPS();
   }
   document.getElementById('btn-start').textContent = '&#9679; Ruta en curso';
+  actualizarBoxOptimizar();
   renderRuta();
 }
 

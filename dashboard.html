@@ -302,26 +302,66 @@ function mostrarPreview(data) {
   box.style.display = 'block';
 }
 
+// ===== GEOCODIFICACION =====
+var MAPS_KEY = 'AIzaSyD2EObXtTMWhGm3J9EtmuNIdS1oH9pqKOs';
+
+function geocodificarDireccion(address) {
+  var url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' +
+    encodeURIComponent(address + ', Chile') + '&key=' + MAPS_KEY;
+  return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.status === 'OK' && data.results[0]) {
+      var loc = data.results[0].geometry.location;
+      return { lat: loc.lat, lng: loc.lng };
+    }
+    return null;
+  }).catch(function() { return null; });
+}
+
+function geocodificarTodos(lista, idx, resultados, onDone) {
+  if (idx >= lista.length) { onDone(resultados); return; }
+  setAlert('Geocodificando ' + (idx+1) + ' / ' + lista.length + ': ' + lista[idx].name + '...', 'success');
+  geocodificarDireccion(lista[idx].address).then(function(coords) {
+    resultados[idx] = coords; // null si fallo
+    setTimeout(function() {
+      geocodificarTodos(lista, idx+1, resultados, onDone);
+    }, 120); // esperar 120ms entre llamadas para no exceder rate limit
+  });
+}
+
 function publicarClientes() {
   if (clientesPendientes.length === 0) return;
   var btn = document.getElementById('btn-publicar');
-  btn.textContent = 'Publicando...';
+  btn.textContent = 'Geocodificando direcciones...';
   btn.disabled = true;
-  db.collection('jornadas').doc(jornadaId).set({
-    clientes: clientesPendientes,
-    entregas: [],
-    startTime: null,
-    ultimaActualizacion: new Date().toISOString()
-  }).then(function() {
-    setAlert('&#10003; ' + clientesPendientes.length + ' clientes publicados al chofer', 'success');
-    document.getElementById('upload-btns').style.display = 'none';
-    clientesPendientes = [];
-    btn.textContent = 'Publicar al chofer';
-    btn.disabled = false;
-  }).catch(function(err) {
-    setAlert('Error al publicar: ' + err.message, 'error');
-    btn.textContent = 'Publicar al chofer';
-    btn.disabled = false;
+
+  geocodificarTodos(clientesPendientes, 0, [], function(coordsArray) {
+    // Agregar lat/lng a cada cliente
+    var clientesConCoords = clientesPendientes.map(function(c, i) {
+      var coords = coordsArray[i];
+      if (coords) { c.lat = coords.lat; c.lng = coords.lng; }
+      return c;
+    });
+    var conCoords = coordsArray.filter(function(x){return x!==null;}).length;
+    btn.textContent = 'Publicando...';
+
+    db.collection('jornadas').doc(jornadaId).set({
+      clientes: clientesConCoords,
+      entregas: [],
+      startTime: null,
+      ultimaActualizacion: new Date().toISOString()
+    }).then(function() {
+      var msg = '&#10003; ' + clientesConCoords.length + ' clientes publicados';
+      if (conCoords > 0) msg += ' &mdash; ' + conCoords + ' con coordenadas para optimizar ruta';
+      setAlert(msg, 'success');
+      document.getElementById('upload-btns').style.display = 'none';
+      clientesPendientes = [];
+      btn.textContent = 'Publicar al chofer';
+      btn.disabled = false;
+    }).catch(function(err) {
+      setAlert('Error al publicar: ' + err.message, 'error');
+      btn.textContent = 'Publicar al chofer';
+      btn.disabled = false;
+    });
   });
 }
 
