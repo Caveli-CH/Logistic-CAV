@@ -71,6 +71,26 @@ header h1{font-size:20px;font-weight:700;}
 .notif-bell{cursor:pointer;font-size:18px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:5px 10px;color:white;transition:background 0.2s;}
 .notif-bell:hover{background:rgba(255,255,255,0.3);}
 .notif-badge{display:inline-block;background:#e74c3c;color:white;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:4px;font-weight:700;vertical-align:middle;}
+/* PIN */
+.pin-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#1a3a2e,#2d5f4f);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.pin-box{background:white;border-radius:20px;padding:36px 32px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+.pin-logo{font-size:52px;margin-bottom:12px;}
+.pin-titulo{font-size:22px;font-weight:700;color:var(--primary);margin-bottom:4px;}
+.pin-sub{font-size:13px;color:#888;margin-bottom:24px;}
+.pin-dots{display:flex;justify-content:center;gap:14px;margin-bottom:24px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:white;transition:all 0.15s;}
+.pin-dot.filled{background:var(--primary);border-color:var(--primary);}
+.pin-dot.error{background:#d94545;border-color:#d94545;animation:shake 0.4s;}
+.pin-teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.pin-btn{padding:18px;font-size:22px;font-weight:700;border:2px solid #eee;border-radius:12px;background:white;cursor:pointer;color:#333;transition:all 0.1s;}
+.pin-btn:hover{background:#f0f8f4;border-color:var(--primary);}
+.pin-btn:active{transform:scale(0.94);background:#d4edda;}
+.pin-btn.borrar{font-size:16px;color:#888;}
+.pin-error-msg{font-size:13px;color:#d94545;min-height:18px;margin-bottom:8px;}
+.pin-cambiar{font-size:12px;color:#aaa;cursor:pointer;text-decoration:underline;margin-top:8px;display:inline-block;}
+.btn-pin-cambiar{background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:12px;padding:5px 10px;border-radius:6px;}
+.btn-pin-cambiar:hover{color:white;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
 /* Upload section */
 .upload-zone{border:2px dashed var(--primary);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:background 0.2s;}
 .upload-zone:hover,.upload-zone.drag{background:#f0f8f4;}
@@ -91,10 +111,42 @@ header h1{font-size:20px;font-weight:700;}
 </head>
 <body>
 
+<!-- MODAL PIN -->
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <div class="pin-logo">&#128274;</div>
+    <div class="pin-titulo">Dashboard Caveli</div>
+    <div class="pin-sub" id="pin-sub">Ingresa tu PIN de 4 digitos</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-error-msg" id="pin-error"></div>
+    <div class="pin-teclado">
+      <button class="pin-btn" onclick="pinTecla('1')">1</button>
+      <button class="pin-btn" onclick="pinTecla('2')">2</button>
+      <button class="pin-btn" onclick="pinTecla('3')">3</button>
+      <button class="pin-btn" onclick="pinTecla('4')">4</button>
+      <button class="pin-btn" onclick="pinTecla('5')">5</button>
+      <button class="pin-btn" onclick="pinTecla('6')">6</button>
+      <button class="pin-btn" onclick="pinTecla('7')">7</button>
+      <button class="pin-btn" onclick="pinTecla('8')">8</button>
+      <button class="pin-btn" onclick="pinTecla('9')">9</button>
+      <button class="pin-btn" onclick="pinLimpiar()">&#8635;</button>
+      <button class="pin-btn" onclick="pinTecla('0')">0</button>
+      <button class="pin-btn borrar" onclick="pinBorrar()">&#9003;</button>
+    </div>
+    <span class="pin-cambiar" id="pin-cambiar-link" style="display:none" onclick="mostrarCambiarPin()">Cambiar PIN</span>
+  </div>
+</div>
+
 <header>
   <h1>&#128666; Caveli &mdash; Dashboard Jefe</h1>
   <div class="header-right">
     <input type="date" class="fecha-selector" id="fecha-selector">
+    <button class="btn-pin-cambiar" onclick="pedirCambiarPin()" title="Cambiar PIN">&#128274; PIN</button>
     <button class="notif-bell" id="notif-bell" onclick="toggleSonido()" title="Activar/desactivar sonido">&#128276; Sonido</button>
     <span class="live-badge offline" id="live-badge">&#9679; CONECTANDO...</span>
   </div>
@@ -875,9 +927,158 @@ function descargarReporte() {
   a.click();
 }
 
+// ===== SISTEMA PIN =====
+var PIN_KEY     = 'caveli_pin';
+var SESSION_KEY = 'caveli_session';
+var PIN_DEFAULT = '1234';
+var pinIngresado = '';
+var pinModocambio = false;
+var pinNuevoTemp  = '';
+
+function iniciarPin() {
+  var sessionOk = sessionStorage.getItem(SESSION_KEY) === 'ok';
+  if (sessionOk) {
+    // Ya autenticado en esta sesion del navegador
+    document.getElementById('pin-overlay').style.display = 'none';
+    iniciarApp();
+    return;
+  }
+  var pinGuardado = localStorage.getItem(PIN_KEY);
+  if (!pinGuardado) {
+    // Primera vez — establecer PIN por defecto
+    localStorage.setItem(PIN_KEY, PIN_DEFAULT);
+    document.getElementById('pin-sub').textContent = 'PIN inicial: 1234 (cambialo despues)';
+    document.getElementById('pin-cambiar-link').style.display = 'inline';
+  }
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+function pinTecla(n) {
+  if (pinIngresado.length >= 4) return;
+  pinIngresado += n;
+  actualizarDots(pinIngresado.length, false);
+  if (pinIngresado.length === 4) {
+    setTimeout(function() { verificarPin(); }, 120);
+  }
+}
+
+function pinBorrar() {
+  if (pinIngresado.length === 0) return;
+  pinIngresado = pinIngresado.slice(0, -1);
+  actualizarDots(pinIngresado.length, false);
+  document.getElementById('pin-error').textContent = '';
+}
+
+function pinLimpiar() {
+  pinIngresado = '';
+  actualizarDots(0, false);
+  document.getElementById('pin-error').textContent = '';
+}
+
+function actualizarDots(n, error) {
+  for (var i = 0; i < 4; i++) {
+    var dot = document.getElementById('pd' + i);
+    dot.className = 'pin-dot' + (i < n ? (error ? ' error' : ' filled') : '');
+  }
+}
+
+function verificarPin() {
+  var pinGuardado = localStorage.getItem(PIN_KEY) || PIN_DEFAULT;
+  if (pinModoambio) {
+    // Modo cambio: verificar PIN actual
+    if (pinIngresado === pinGuardado) {
+      pinNuevoTemp  = '';
+      pinModoambio  = false;
+      pinIngresado  = '';
+      actualizarDots(0, false);
+      document.getElementById('pin-sub').textContent = 'Ingresa el nuevo PIN de 4 digitos';
+      document.getElementById('pin-error').textContent = '';
+      pinModoNuevo = true;
+    } else {
+      pinError('PIN incorrecto');
+    }
+  } else if (pinModoNuevo) {
+    // Guardar nuevo PIN
+    if (pinNuevoTemp === '') {
+      pinNuevoTemp = pinIngresado;
+      pinIngresado = '';
+      actualizarDots(0, false);
+      document.getElementById('pin-sub').textContent = 'Repite el nuevo PIN para confirmar';
+    } else {
+      if (pinIngresado === pinNuevoTemp) {
+        localStorage.setItem(PIN_KEY, pinIngresado);
+        pinModoNuevo = false; pinNuevoTemp = '';
+        pinIngresado = '';
+        document.getElementById('pin-sub').textContent = 'PIN actualizado. Ingresa tu nuevo PIN';
+        document.getElementById('pin-error').textContent = '';
+        actualizarDots(0, false);
+      } else {
+        pinNuevoTemp = ''; pinIngresado = '';
+        actualizarDots(0, true);
+        document.getElementById('pin-error').textContent = 'Los PIN no coinciden. Intenta de nuevo';
+        setTimeout(function() { actualizarDots(0, false); document.getElementById('pin-sub').textContent = 'Ingresa el nuevo PIN de 4 digitos'; }, 1200);
+      }
+    }
+  } else {
+    // Verificacion normal
+    if (pinIngresado === pinGuardado) {
+      sessionStorage.setItem(SESSION_KEY, 'ok');
+      document.getElementById('pin-overlay').style.display = 'none';
+      iniciarApp();
+    } else {
+      pinError('PIN incorrecto');
+    }
+  }
+}
+
+var pinModoambio = false;
+var pinModoNuevo = false;
+
+function pinError(msg) {
+  actualizarDots(4, true);
+  document.getElementById('pin-error').textContent = msg;
+  setTimeout(function() {
+    pinIngresado = '';
+    actualizarDots(0, false);
+    document.getElementById('pin-error').textContent = '';
+  }, 1000);
+}
+
+function mostrarCambiarPin() {
+  pinModoambio  = true;
+  pinIngresado  = '';
+  actualizarDots(0, false);
+  document.getElementById('pin-sub').textContent = 'Ingresa el PIN actual para cambiarlo';
+  document.getElementById('pin-error').textContent = '';
+}
+
+function pedirCambiarPin() {
+  // Desde el header (ya autenticado) — ir directo a ingresar nuevo PIN
+  pinModoNuevo  = true;
+  pinNuevoTemp  = '';
+  pinIngresado  = '';
+  actualizarDots(0, false);
+  document.getElementById('pin-sub').textContent = 'Ingresa el nuevo PIN de 4 digitos';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+// Teclado fisico tambien funciona
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('pin-overlay').style.display !== 'none') {
+    if (e.key >= '0' && e.key <= '9') pinTecla(e.key);
+    else if (e.key === 'Backspace') pinBorrar();
+    else if (e.key === 'Escape') { pinLimpiar(); }
+  }
+});
+
+function iniciarApp() {
+  escucharJornada();
+  escucharGPS();
+}
+
 // ===== INICIO =====
-escucharJornada();
-escucharGPS();
+iniciarPin();
 </script>
 </body>
 </html>
