@@ -436,6 +436,7 @@ function escucharClientes() {
     var data = doc.data();
     var nuevosClientes = data.clientes || [];
     if (nuevosClientes.length > 0) {
+      var esPrimeraCarga = clients.length === 0;
       clients = nuevosClientes;
       document.getElementById('fb-estado').textContent = 'Clientes cargados por el jefe';
       document.getElementById('fb-estado').style.color = '#27ae60';
@@ -446,8 +447,20 @@ function escucharClientes() {
       actualizarBoxOptimizar();
       var conCoords = clients.filter(function(c){return c.lat&&c.lng;}).length;
       var msg = clients.length + ' clientes recibidos del jefe';
-      if (conCoords > 0) msg += ' (' + conCoords + ' con coords para optimizar)';
+      if (conCoords > 0) msg += ' (' + conCoords + ' con coords)';
       showToast(msg, 'success');
+      // Mostrar boton prominente para ir a la ruta
+      document.getElementById('fb-count').innerHTML =
+        clients.length + ' clientes para hoy &nbsp;' +
+        '<button onclick="switchTab(\'ruta\',document.getElementById(\'tab-btn-ruta\'))" ' +
+        'style="background:#2d5f4f;color:white;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">'+
+        'Ver ruta &#10132;</button>';
+      // Si es la primera vez que llegan clientes, ir directo al tab ruta
+      if (esPrimeraCarga) {
+        setTimeout(function() {
+          switchTab('ruta', document.getElementById('tab-btn-ruta'));
+        }, 600);
+      }
     }
     // Sync entregas que vienen del servidor (si el jefe reinicio)
     var entregasServer = data.entregas || [];
