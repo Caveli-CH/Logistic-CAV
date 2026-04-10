@@ -297,6 +297,17 @@ tr:hover td{background:#f9f9f9;}
         <label>Notas (opcional)</label>
         <textarea id="d-notes" placeholder="Ej: Cliente no estaba, dejar en porteria"></textarea>
       </div>
+      <div class="form-group">
+        <label>Foto de evidencia (opcional)</label>
+        <input type="file" id="d-foto" accept="image/*" capture="environment" style="display:none">
+        <div id="foto-preview" style="display:none;margin-bottom:8px;position:relative">
+          <img id="foto-img" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover">
+          <button type="button" onclick="borrarFoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:white;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">&#10005;</button>
+        </div>
+        <button type="button" class="btn btn-secondary" style="width:100%" onclick="document.getElementById('d-foto').click()">
+          &#128247; Tomar foto / Seleccionar imagen
+        </button>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
         <button type="submit" class="btn btn-success">&#10003; Guardar</button>
@@ -672,6 +683,7 @@ function renderClients() {
         (c.phone ? '<div class="client-info">&#128242; ' + c.phone + '</div>' : '') +
         (c.notes ? '<div class="client-info" style="color:#0066cc">&#128221; ' + c.notes + '</div>' : '') +
         (d && d.notes ? '<div class="client-info" style="color:#888;font-style:italic">Nota: ' + d.notes + '</div>' : '') +
+        (d && d.foto  ? '<img src="' + d.foto + '" style="width:100%;border-radius:6px;margin-top:6px;max-height:120px;object-fit:cover">' : '') +
         '<div class="card-footer">' +
           '<span class="status-badge ' + (badgeClass[s] || 'badge-pending') + '">' + (statusLabel[s] || s) + '</span>' +
           '<button class="btn-nav nav-btn" data-id="' + c.id + '">&#128506; Navegar</button>' +
@@ -710,9 +722,53 @@ function openModal(clientId) {
     '</div>';
   document.getElementById('d-status').value = d ? d.status : '';
   document.getElementById('d-notes').value  = d ? (d.notes || '') : '';
+  // Foto existente
+  fotoBase64 = (d && d.foto) ? d.foto : '';
+  if (fotoBase64) {
+    document.getElementById('foto-img').src = fotoBase64;
+    document.getElementById('foto-preview').style.display = 'block';
+  } else {
+    document.getElementById('foto-preview').style.display = 'none';
+    document.getElementById('foto-img').src = '';
+  }
+  document.getElementById('d-foto').value = '';
   document.getElementById('delivery-modal').classList.add('show');
 }
 function closeModal() { document.getElementById('delivery-modal').classList.remove('show'); }
+
+// ===== FOTO =====
+var fotoBase64 = '';
+
+document.getElementById('d-foto').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    // Comprimir a max 800px y calidad 0.7 para no saturar Firestore
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var MAX = 800;
+      var w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      fotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+      document.getElementById('foto-img').src = fotoBase64;
+      document.getElementById('foto-preview').style.display = 'block';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+function borrarFoto() {
+  fotoBase64 = '';
+  document.getElementById('d-foto').value = '';
+  document.getElementById('foto-preview').style.display = 'none';
+  document.getElementById('foto-img').src = '';
+}
 
 function saveDelivery() {
   var status = document.getElementById('d-status').value;
@@ -720,7 +776,13 @@ function saveDelivery() {
   var notes = document.getElementById('d-notes').value;
   var idx   = -1;
   deliveries.forEach(function(d, i) { if (d.clientId === selectedClientId) idx = i; });
-  var rec = {clientId: selectedClientId, status: status, notes: notes, timestamp: new Date().toLocaleTimeString('es-CL')};
+  var rec = {
+    clientId:  selectedClientId,
+    status:    status,
+    notes:     notes,
+    timestamp: new Date().toLocaleTimeString('es-CL'),
+    foto:      fotoBase64 || ''
+  };
   if (idx >= 0) deliveries[idx] = rec; else deliveries.push(rec);
   save(); updateAll(); return true;
 }

@@ -629,6 +629,7 @@ function renderEntregas() {
         '<div class="entrega-name">' + c.name + '</div>' +
         '<div class="entrega-addr">' + c.address + '</div>' +
         (d && d.notes ? '<div style="font-size:11px;color:#0066cc;margin-top:2px">' + d.notes + '</div>' : '') +
+        (d && d.foto  ? '<img src="' + d.foto + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;margin-top:4px;cursor:pointer" onclick="verFoto(\'' + (clientes.indexOf(c)+1) + '\',this.src)">' : '') +
       '</div>' +
       (c.total ? '<div class="entrega-total">$' + Number(c.total).toLocaleString('es-CL') + '</div>' : '') +
       '<div style="text-align:right">' +
@@ -638,6 +639,21 @@ function renderEntregas() {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+// ===== LIGHTBOX FOTO =====
+function verFoto(num, src) {
+  var lb = document.getElementById('lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'lightbox';
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;flex-direction:column;gap:12px';
+    lb.onclick = function() { lb.remove(); };
+    document.body.appendChild(lb);
+  }
+  lb.innerHTML =
+    '<div style="color:white;font-size:13px;opacity:0.7">Entrega #' + num + ' &mdash; clic para cerrar</div>' +
+    '<img src="' + src + '" style="max-width:90vw;max-height:80vh;border-radius:10px;box-shadow:0 4px 30px rgba(0,0,0,0.5)">';
 }
 
 // ===== REPUBLICAR / NUEVA JORNADA =====
