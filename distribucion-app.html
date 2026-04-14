@@ -660,8 +660,8 @@ document.getElementById('input-chofer-nombre').addEventListener('keydown', funct
 // ===== GEOCODIFICACION =====
 function geocodificarDireccion(address) {
   var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=cl&q=' +
-    encodeURIComponent(address);
-  return fetch(url, { headers: { 'Accept-Language': 'es' } })
+    encodeURIComponent(address + ', Chile');
+  return fetch(url)
     .then(function(r){ return r.json(); })
     .then(function(data){
       if (data && data[0]) {
@@ -671,13 +671,20 @@ function geocodificarDireccion(address) {
     }).catch(function(){ return null; });
 }
 
+var _geoOk = 0;
 function geocodificarPendientes(lista, idx, onDone) {
   if (idx >= lista.length) { onDone(); return; }
   var c = lista[idx];
-  if (c.lat && c.lng) { geocodificarPendientes(lista, idx + 1, onDone); return; }
+  var infoEl = document.getElementById('optimizar-info');
+  if (c.lat && c.lng) {
+    _geoOk++;
+    geocodificarPendientes(lista, idx + 1, onDone);
+    return;
+  }
+  if (infoEl) infoEl.textContent = 'Geocodificando ' + (idx + 1) + ' / ' + lista.length + ': ' + (c.name || c.address) + '...';
   geocodificarDireccion(c.address).then(function(coords) {
-    if (coords) { c.lat = coords.lat; c.lng = coords.lng; }
-    setTimeout(function() { geocodificarPendientes(lista, idx + 1, onDone); }, 120);
+    if (coords) { c.lat = coords.lat; c.lng = coords.lng; _geoOk++; }
+    setTimeout(function() { geocodificarPendientes(lista, idx + 1, onDone); }, 1100);
   });
 }
 
@@ -1007,12 +1014,16 @@ function optimizarRuta() {
     var btnOptimizar = document.querySelector('#optimizar-box .btn-success');
     if (btnOptimizar) { btnOptimizar.textContent = '⏳ Geocodificando...'; btnOptimizar.disabled = true; }
     document.getElementById('optimizar-info').textContent = 'Obteniendo coordenadas de ' + clients.length + ' clientes...';
+    _geoOk = 0;
     geocodificarPendientes(clients, 0, function() {
       if (btnOptimizar) { btnOptimizar.textContent = '📈 Optimizar orden'; btnOptimizar.disabled = false; }
       var ahora = clients.filter(function(c){ return c.lat && c.lng; }).length;
       if (ahora < 2) {
-        showToast('No se pudieron obtener coordenadas. Verifica conexion a internet.', 'error');
-        actualizarBoxOptimizar(); return;
+        showToast('Geocodificó ' + ahora + ' de ' + clients.length + ' direcciones. Sin suficientes coordenadas.', 'error');
+        document.getElementById('optimizar-info').textContent =
+          'Geocodificó ' + ahora + ' / ' + clients.length + ' direcciones. ' +
+          (ahora === 0 ? 'Puede ser problema de red o que las direcciones no están en OpenStreetMap.' : 'Se necesitan al menos 2 para optimizar.');
+        return;
       }
       _aplicarOptimizacion();
     });
