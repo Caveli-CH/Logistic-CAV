@@ -803,6 +803,7 @@ function renderEntregas() {
         '<span class="' + (dotClass[s]||'dot-pendiente') + ' status-dot" style="display:inline-block;margin-bottom:4px"></span><br>' +
         '<span style="font-size:10px;color:#888">' + (label[s]||s) + '</span>' +
         (d ? '<br><span class="entrega-hora">' + d.timestamp + '</span>' : '') +
+        '<br><button onclick="editarCliente(\'' + c.id + '\')" style="margin-top:5px;padding:3px 8px;font-size:10px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;cursor:pointer;color:#555">&#9998; Editar</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -1077,8 +1078,126 @@ function iniciarApp() {
   escucharGPS();
 }
 
+// ===== EDITAR CLIENTE =====
+var editandoId = null;
+
+function editarCliente(id) {
+  var c = clientes.filter(function(x){ return x.id === id; })[0];
+  if (!c) return;
+  editandoId = id;
+  document.getElementById('edit-name').value    = c.name    || '';
+  document.getElementById('edit-address').value = c.address || '';
+  document.getElementById('edit-phone').value   = c.phone   || '';
+  document.getElementById('edit-total').value   = c.total   || '';
+  document.getElementById('edit-notes').value   = c.notes   || '';
+  document.getElementById('edit-alert').innerHTML = '';
+  document.getElementById('edit-geocod-status').textContent = c.lat ? '✓ Tiene coordenadas GPS' : 'Sin coordenadas — se geocodificará al guardar';
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function cerrarEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editandoId = null;
+}
+
+function guardarEdicion() {
+  var nombre  = document.getElementById('edit-name').value.trim();
+  var dir     = document.getElementById('edit-address').value.trim();
+  var tel     = document.getElementById('edit-phone').value.trim();
+  var total   = Number(document.getElementById('edit-total').value) || 0;
+  var notas   = document.getElementById('edit-notes').value.trim();
+  var alertEl = document.getElementById('edit-alert');
+
+  if (!nombre || !dir) {
+    alertEl.innerHTML = '<div style="color:#d94545;font-size:13px">Nombre y dirección son obligatorios</div>';
+    return;
+  }
+
+  var btn = document.getElementById('btn-guardar-edit');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  var idx = clientes.findIndex(function(x){ return x.id === editandoId; });
+  if (idx === -1) { cerrarEditModal(); return; }
+
+  var clienteActual = clientes[idx];
+  var direccionCambio = dir !== clienteActual.address;
+
+  function guardarEnFirestore(lat, lng) {
+    var actualizado = Object.assign({}, clienteActual, {
+      name: nombre, address: dir, phone: tel, total: total, notes: notas
+    });
+    if (lat !== undefined) { actualizado.lat = lat; actualizado.lng = lng; }
+
+    var nuevaLista = clientes.slice();
+    nuevaLista[idx] = actualizado;
+
+    db.collection('jornadas').doc(jornadaId).update({ clientes: nuevaLista })
+      .then(function() {
+        cerrarEditModal();
+        btn.disabled = false; btn.textContent = '✓ Guardar';
+      })
+      .catch(function(err) {
+        alertEl.innerHTML = '<div style="color:#d94545;font-size:13px">Error: ' + err.message + '</div>';
+        btn.disabled = false; btn.textContent = '✓ Guardar';
+      });
+  }
+
+  if (direccionCambio) {
+    document.getElementById('edit-geocod-status').textContent = 'Geocodificando nueva dirección...';
+    geocodificarDireccion(dir).then(function(coords) {
+      document.getElementById('edit-geocod-status').textContent = coords ? '✓ Coordenadas obtenidas' : 'Sin coordenadas GPS';
+      guardarEnFirestore(coords ? coords.lat : undefined, coords ? coords.lng : undefined);
+    });
+  } else {
+    guardarEnFirestore();
+  }
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) cerrarEditModal();
+});
+
 // ===== INICIO =====
 iniciarPin();
 </script>
+
+<!-- MODAL EDITAR CLIENTE -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px">
+  <div style="background:white;border-radius:12px;padding:24px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="font-size:16px;font-weight:700;color:#2d5f4f">&#9998; Editar parada</h3>
+      <button onclick="cerrarEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#999">&#10005;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Nombre cliente *</label>
+        <input id="edit-name" type="text" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Dirección *</label>
+        <input id="edit-address" type="text" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+        <div id="edit-geocod-status" style="font-size:11px;color:#888;margin-top:4px"></div>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Teléfono</label>
+        <input id="edit-phone" type="tel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Total ($)</label>
+        <input id="edit-total" type="number" min="0" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Notas</label>
+        <textarea id="edit-notes" rows="2" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px;resize:vertical"></textarea>
+      </div>
+      <div id="edit-alert" style="margin-top:4px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+        <button onclick="cerrarEditModal()" style="padding:10px 20px;border:1px solid #ddd;background:white;border-radius:7px;cursor:pointer;font-size:14px">Cancelar</button>
+        <button onclick="guardarEdicion()" id="btn-guardar-edit" style="padding:10px 22px;background:#2d5f4f;color:white;border:none;border-radius:7px;cursor:pointer;font-size:14px;font-weight:700">&#10003; Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
