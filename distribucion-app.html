@@ -981,25 +981,49 @@ function saveAndNext() {
 // ===== CIUDADES =====
 var ciudadSeleccionada = null;
 
+function normalizarCiudad(str) {
+  return str.toLowerCase()
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i')
+    .replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/ñ/g,'n')
+    .replace(/[^a-z0-9 ]/g,'').trim();
+}
+
 function extraerCiudad(address) {
   if (!address) return 'Sin ciudad';
-  var partes = address.split(',');
-  return partes[partes.length - 1].trim();
+  // Intentar por coma primero
+  if (address.indexOf(',') !== -1) {
+    var partes = address.split(',');
+    var candidato = partes[partes.length - 1].trim();
+    if (candidato.length > 0 && candidato.length <= 35) return candidato;
+  }
+  // Sin coma: buscar todo lo que viene después del último número de calle
+  var matchNum = address.match(/\d+\s+([A-Za-záéíóúüñÁÉÍÓÚÜÑ ]+)$/);
+  if (matchNum) return matchNum[1].trim();
+  // Fallback: últimas dos palabras
+  var palabras = address.trim().split(/\s+/);
+  return palabras.slice(-2).join(' ');
 }
 
 function getCiudades() {
-  var mapa = {};
+  // Agrupar por nombre normalizado, mostrar la variante más frecuente
+  var mapa = {}; // clave: normalizado, valor: {nombre, total}
   clients.forEach(function(c) {
-    var ciudad = extraerCiudad(c.address);
-    mapa[ciudad] = (mapa[ciudad] || 0) + 1;
+    var raw = extraerCiudad(c.address);
+    var key = normalizarCiudad(raw);
+    if (!mapa[key]) mapa[key] = { nombre: raw, total: 0 };
+    mapa[key].total++;
+    // Preferir la variante con tilde si aparece más
+    if (!mapa[key].nombre.match(/[áéíóúü]/i) && raw.match(/[áéíóúü]/i)) {
+      mapa[key].nombre = raw;
+    }
   });
-  return Object.keys(mapa).map(function(nombre) {
-    return { nombre: nombre, total: mapa[nombre] };
+  return Object.keys(mapa).map(function(key) {
+    return { nombre: mapa[key].nombre, key: key, total: mapa[key].total };
   });
 }
 
-function seleccionarCiudad(nombre) {
-  ciudadSeleccionada = (ciudadSeleccionada === nombre) ? null : nombre;
+function seleccionarCiudad(key) {
+  ciudadSeleccionada = (ciudadSeleccionada === key) ? null : key;
   renderCiudades();
   renderRuta();
 }
@@ -1012,8 +1036,8 @@ function renderCiudades() {
   if (ciudades.length < 2) { box.style.display = 'none'; return; }
   box.style.display = 'block';
   pills.innerHTML = ciudades.map(function(c) {
-    var activa = ciudadSeleccionada === c.nombre;
-    return '<button class="pill' + (activa ? ' active' : '') + '" onclick="seleccionarCiudad(\'' + c.nombre.replace(/'/g, "\\'") + '\')">' +
+    var activa = ciudadSeleccionada === c.key;
+    return '<button class="pill' + (activa ? ' active' : '') + '" onclick="seleccionarCiudad(\'' + c.key + '\')">' +
       c.nombre + ' <span style="opacity:0.7">(' + c.total + ')</span></button>';
   }).join('');
 }
@@ -1136,16 +1160,16 @@ function renderRuta() {
     // Ordenar: ciudad seleccionada primero, resto después
     var listaOrdenada = clients.slice();
     if (ciudadSeleccionada) {
-      var deCiudad  = listaOrdenada.filter(function(c){ return extraerCiudad(c.address) === ciudadSeleccionada; });
-      var otrosCiud = listaOrdenada.filter(function(c){ return extraerCiudad(c.address) !== ciudadSeleccionada; });
+      var deCiudad  = listaOrdenada.filter(function(c){ return normalizarCiudad(extraerCiudad(c.address)) === ciudadSeleccionada; });
+      var otrosCiud = listaOrdenada.filter(function(c){ return normalizarCiudad(extraerCiudad(c.address)) !== ciudadSeleccionada; });
       listaOrdenada = deCiudad.concat(otrosCiud);
     }
     var numPaso = 0;
     document.getElementById('route-list').innerHTML = listaOrdenada.map(function(c) {
       var done = !!getD(c.id);
-      var ciudad = extraerCiudad(c.address);
-      var esCiudadActual = ciudadSeleccionada && ciudad === ciudadSeleccionada;
-      var esOtra = ciudadSeleccionada && ciudad !== ciudadSeleccionada;
+      var ciudadKey = normalizarCiudad(extraerCiudad(c.address));
+      var esCiudadActual = ciudadSeleccionada && ciudadKey === ciudadSeleccionada;
+      var esOtra = ciudadSeleccionada && ciudadKey !== ciudadSeleccionada;
       if (!done) numPaso++;
       return '<li class="route-item ' + (done ? 'done' : '') + '" data-id="' + c.id + '" style="' + (esOtra ? 'opacity:0.5' : '') + '">' +
         '<span class="route-step" style="' + (esCiudadActual ? 'background:var(--primary);color:white' : '') + '">' + (done ? '&#10003;' : numPaso) + '</span>' +
@@ -1155,7 +1179,7 @@ function renderRuta() {
     }).join('');
     // Separador visual entre ciudades
     if (ciudadSeleccionada) {
-      var deCiudadCount = clients.filter(function(c){ return extraerCiudad(c.address) === ciudadSeleccionada; }).length;
+      var deCiudadCount = clients.filter(function(c){ return normalizarCiudad(extraerCiudad(c.address)) === ciudadSeleccionada; }).length;
       var items = document.getElementById('route-list').querySelectorAll('li');
       if (items[deCiudadCount]) {
         var sep = document.createElement('li');
@@ -1196,9 +1220,9 @@ function openFullRouteInMaps() {
   var src = pending.length > 0 ? pending : clients;
   // Filtrar por ciudad seleccionada si hay una activa
   if (ciudadSeleccionada) {
-    var deCiudad = src.filter(function(c){ return extraerCiudad(c.address) === ciudadSeleccionada; });
+    var deCiudad = src.filter(function(c){ return normalizarCiudad(extraerCiudad(c.address)) === ciudadSeleccionada; });
     if (deCiudad.length > 0) src = deCiudad;
-    else showToast('No hay pendientes en ' + ciudadSeleccionada, 'error');
+    else showToast('No hay pendientes en esa ciudad', 'error');
   }
   if (src.length === 1) { navigateTo(src[0].address); return; }
   var stops = src.map(function(c) { return encodeURIComponent(c.address); });
