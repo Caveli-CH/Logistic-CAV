@@ -301,6 +301,25 @@ tr:hover td{background:#f9f9f9;}
           <option value="fallido">&#10007; No se pudo entregar</option>
         </select>
       </div>
+      <script>
+        document.getElementById('d-status').addEventListener('change', function() {
+          var requierePago = this.value === 'entregado' || this.value === 'parcial';
+          var pg = document.getElementById('pago-group');
+          pg.style.display = requierePago ? 'block' : 'none';
+          if (!requierePago) document.getElementById('d-pago').value = '';
+        });
+      </script>
+      <div class="form-group" id="pago-group" style="display:none">
+        <label>Método de pago <span style="color:#d94545">*</span></label>
+        <select id="d-pago">
+          <option value="">Selecciona...</option>
+          <option value="Efectivo">💵 Efectivo</option>
+          <option value="Transferencia">🏦 Transferencia</option>
+          <option value="Transbank">💳 Transbank</option>
+          <option value="Cheque">📄 Cheque</option>
+          <option value="Credito">🔖 Crédito</option>
+        </select>
+      </div>
       <div class="form-group">
         <label>Notas (opcional)</label>
         <textarea id="d-notes" placeholder="Ej: Cliente no estaba, dejar en porteria"></textarea>
@@ -437,7 +456,23 @@ function escucharClientes() {
     var nuevosClientes = data.clientes || [];
     if (nuevosClientes.length > 0) {
       var esPrimeraCarga = clients.length === 0;
-      clients = nuevosClientes;
+      // Restaurar orden optimizado si los clientes son los mismos
+      var savedData = null;
+      try { savedData = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch(e) {}
+      if (savedData && savedData.clientesOrden && savedData.clientesOrden.length === nuevosClientes.length) {
+        var idMap = {};
+        nuevosClientes.forEach(function(c){ idMap[c.id] = c; });
+        var mismoConjunto = savedData.clientesOrden.every(function(id){ return !!idMap[id]; });
+        if (mismoConjunto) {
+          clients = savedData.clientesOrden.map(function(id){ return idMap[id]; });
+          clientesOrdenOriginal = nuevosClientes.slice();
+        } else {
+          clients = nuevosClientes;
+          clientesOrdenOriginal = null;
+        }
+      } else {
+        clients = nuevosClientes;
+      }
       document.getElementById('fb-estado').textContent = 'Clientes cargados por el jefe';
       document.getElementById('fb-estado').style.color = '#27ae60';
       document.getElementById('fb-count').textContent = clients.length + ' clientes para hoy';
@@ -622,14 +657,44 @@ document.getElementById('input-chofer-nombre').addEventListener('keydown', funct
   if (e.key === 'Enter') guardarNombreChofer();
 });
 
+// ===== GEOCODIFICACION =====
+var MAPS_KEY = 'AIzaSyD2EObXtTMWhGm3J9EtmuNIdS1oH9pqKOs';
+
+function geocodificarDireccion(address) {
+  var url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' +
+    encodeURIComponent(address + ', Chile') + '&key=' + MAPS_KEY;
+  return fetch(url).then(function(r){ return r.json(); }).then(function(data){
+    if (data.status === 'OK' && data.results[0]) {
+      var loc = data.results[0].geometry.location;
+      return { lat: loc.lat, lng: loc.lng };
+    }
+    return null;
+  }).catch(function(){ return null; });
+}
+
+function geocodificarPendientes(lista, idx, onDone) {
+  if (idx >= lista.length) { onDone(); return; }
+  var c = lista[idx];
+  if (c.lat && c.lng) { geocodificarPendientes(lista, idx + 1, onDone); return; }
+  geocodificarDireccion(c.address).then(function(coords) {
+    if (coords) { c.lat = coords.lat; c.lng = coords.lng; }
+    setTimeout(function() { geocodificarPendientes(lista, idx + 1, onDone); }, 120);
+  });
+}
+
 // ===== ESTADO =====
 var clients = [], deliveries = [], startTime = null, timerInterval = null;
 var currentFilter = 'todos', selectedClientId = null;
 var SKEY = 'caveli_v3';
 
-// ===== PERSISTENCIA LOCAL (solo entregas) =====
+// ===== PERSISTENCIA LOCAL (entregas + orden optimizado) =====
 function save() {
-  try { localStorage.setItem(SKEY, JSON.stringify({deliveries: deliveries, startTime: startTime})); } catch(e) {}
+  var data = {deliveries: deliveries, startTime: startTime};
+  if (clientesOrdenOriginal !== null) {
+    // Guardar orden optimizado como lista de IDs
+    data.clientesOrden = clients.map(function(c){ return c.id; });
+  }
+  try { localStorage.setItem(SKEY, JSON.stringify(data)); } catch(e) {}
   syncFirebase();
 }
 function loadEntregas() {
@@ -754,6 +819,8 @@ function openModal(clientId) {
     '<a href="' + murl + '" target="_blank" style="display:inline-block;margin-top:8px;padding:7px 14px;background:#4285F4;color:white;border-radius:6px;text-decoration:none;font-weight:700;font-size:13px">&#128506; Abrir en Google Maps</a>' +
     '</div>';
   document.getElementById('d-status').value = d ? d.status : '';
+  document.getElementById('d-status').dispatchEvent(new Event('change'));
+  document.getElementById('d-pago').value   = d ? (d.pago || '') : '';
   document.getElementById('d-notes').value  = d ? (d.notes || '') : '';
   // Foto existente
   fotoBase64 = (d && d.foto) ? d.foto : '';
@@ -866,12 +933,17 @@ function borrarFoto() {
 function saveDelivery() {
   var status = document.getElementById('d-status').value;
   if (!status) { showToast('Selecciona el estado', 'error'); return false; }
+  var pago = document.getElementById('d-pago').value;
+  if ((status === 'entregado' || status === 'parcial') && !pago) {
+    showToast('Selecciona el método de pago', 'error'); return false;
+  }
   var notes = document.getElementById('d-notes').value;
   var idx   = -1;
   deliveries.forEach(function(d, i) { if (d.clientId === selectedClientId) idx = i; });
   var rec = {
     clientId:  selectedClientId,
     status:    status,
+    pago:      pago,
     notes:     notes,
     timestamp: new Date().toLocaleTimeString('es-CL'),
     foto:      fotoBase64 || '',
@@ -927,16 +999,35 @@ function vecinoMasCercano(lista) {
 }
 
 function optimizarRuta() {
-  var conCoords = clients.filter(function(c){ return c.lat && c.lng; });
-  if (conCoords.length < 2) {
-    showToast('No hay suficientes coordenadas para optimizar', 'error'); return;
+  var conCoords = clients.filter(function(c){ return c.lat && c.lng; }).length;
+  if (conCoords >= 2) {
+    // Ya hay coordenadas — optimizar directo
+    _aplicarOptimizacion();
+  } else {
+    // Geocodificar primero
+    var btnOptimizar = document.querySelector('#optimizar-box .btn-success');
+    if (btnOptimizar) { btnOptimizar.textContent = '⏳ Geocodificando...'; btnOptimizar.disabled = true; }
+    document.getElementById('optimizar-info').textContent = 'Obteniendo coordenadas de ' + clients.length + ' clientes...';
+    geocodificarPendientes(clients, 0, function() {
+      if (btnOptimizar) { btnOptimizar.textContent = '📈 Optimizar orden'; btnOptimizar.disabled = false; }
+      var ahora = clients.filter(function(c){ return c.lat && c.lng; }).length;
+      if (ahora < 2) {
+        showToast('No se pudieron obtener coordenadas. Verifica conexion a internet.', 'error');
+        actualizarBoxOptimizar(); return;
+      }
+      _aplicarOptimizacion();
+    });
   }
-  clientesOrdenOriginal = clients.slice(); // guardar original
+}
+
+function _aplicarOptimizacion() {
+  var conCoords = clients.filter(function(c){ return c.lat && c.lng; }).length;
+  clientesOrdenOriginal = clients.slice();
   clients = vecinoMasCercano(clients.slice());
   save();
   document.getElementById('btn-restaurar').style.display = 'block';
   renderRuta(); updateAll();
-  showToast('Ruta optimizada — ' + conCoords.length + ' paradas ordenadas', 'success');
+  showToast('Ruta optimizada — ' + conCoords + ' paradas ordenadas', 'success');
 }
 
 function restaurarOrden() {
@@ -952,12 +1043,16 @@ function actualizarBoxOptimizar() {
   var box = document.getElementById('optimizar-box');
   var info = document.getElementById('optimizar-info');
   if (!box) return;
-  var conCoords = clients.filter(function(c){ return c.lat && c.lng; }).length;
-  if (conCoords >= 2) {
+  if (clients.length >= 2) {
     box.style.display = 'block';
-    info.textContent = conCoords + ' de ' + clients.length + ' clientes tienen coordenadas GPS para optimizar.';
-    if (conCoords < clients.length) {
-      info.textContent += ' ' + (clients.length - conCoords) + ' sin coordenadas se colocan al final.';
+    var conCoords = clients.filter(function(c){ return c.lat && c.lng; }).length;
+    if (conCoords >= 2) {
+      info.textContent = conCoords + ' de ' + clients.length + ' clientes tienen coordenadas GPS para optimizar.';
+      if (conCoords < clients.length) {
+        info.textContent += ' ' + (clients.length - conCoords) + ' sin coordenadas se colocan al final.';
+      }
+    } else {
+      info.textContent = 'Los clientes no tienen coordenadas GPS — el jefe debe volver a publicar la ruta para activar la optimizacion automatica.';
     }
   } else {
     box.style.display = 'none';
@@ -1072,21 +1167,21 @@ function renderReport() {
     '<div class="info-box"><div class="info-box-label">Parciales</div><div class="info-box-value">'+parc+'</div></div>' +
     '<div class="info-box"><div class="info-box-label">Fallidos</div><div class="info-box-value">'+fall+'</div></div>' +
     '<div class="info-box"><div class="info-box-label">Duracion</div><div class="info-box-value" style="font-size:16px">'+dur+'</div></div>' +
-    '</div><div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Direccion</th><th>Estado</th><th>Total</th><th>Hora</th><th>Notas</th></tr></thead><tbody>';
+    '</div><div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Direccion</th><th>Estado</th><th>Pago</th><th>Total</th><th>Hora</th><th>Notas</th></tr></thead><tbody>';
   deliveries.forEach(function(d,i){
     var c=clients.filter(function(x){return x.id===d.clientId;})[0]||{};
     var em=d.status==='entregado'?'&#10003;':d.status==='parcial'?'&#9888;':'&#10007;';
-    h+='<tr><td>'+(i+1)+'</td><td>'+(c.name||'')+'</td><td>'+(c.address||'')+'</td><td>'+em+' '+d.status+'</td><td>'+(c.total?'$'+Number(c.total).toLocaleString('es-CL'):'-')+'</td><td>'+d.timestamp+'</td><td>'+(d.notes||'-')+'</td></tr>';
+    h+='<tr><td>'+(i+1)+'</td><td>'+(c.name||'')+'</td><td>'+(c.address||'')+'</td><td>'+em+' '+d.status+'</td><td>'+(d.pago||'-')+'</td><td>'+(c.total?'$'+Number(c.total).toLocaleString('es-CL'):'-')+'</td><td>'+d.timestamp+'</td><td>'+(d.notes||'-')+'</td></tr>';
   });
   h+='</tbody></table></div>';
   el.innerHTML=h; btns.style.display='flex';
 }
 
 function downloadReport() {
-  var rows = ['#,Cliente,Direccion,Telefono,Estado,Total,Hora,Notas'];
+  var rows = ['#,Cliente,Direccion,Telefono,Estado,Pago,Total,Hora,Notas'];
   deliveries.forEach(function(d,i){
     var c=clients.filter(function(x){return x.id===d.clientId;})[0]||{};
-    rows.push((i+1)+',"'+(c.name||'')+'","'+(c.address||'')+'","'+(c.phone||'')+'","'+d.status+'","'+(c.total||0)+'","'+d.timestamp+'","'+(d.notes||'')+'"');
+    rows.push((i+1)+',"'+(c.name||'')+'","'+(c.address||'')+'","'+(c.phone||'')+'","'+d.status+'","'+(d.pago||'')+'","'+(c.total||0)+'","'+d.timestamp+'","'+(d.notes||'')+'"');
   });
   var csv='Distribuidora Caveli - Reporte\nFecha: '+new Date().toLocaleDateString('es-CL')+'\n\n'+rows.join('\n');
   var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
