@@ -1,4 +1,4 @@
-const CACHE = 'caveli-v1';
+const CACHE = 'caveli-v2';
 const FILES = ['./distribucion-app.html', './manifest.json'];
 
 self.addEventListener('install', e => {
