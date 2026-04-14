@@ -658,18 +658,17 @@ document.getElementById('input-chofer-nombre').addEventListener('keydown', funct
 });
 
 // ===== GEOCODIFICACION =====
-var MAPS_KEY = 'AIzaSyD2EObXtTMWhGm3J9EtmuNIdS1oH9pqKOs';
-
 function geocodificarDireccion(address) {
-  var url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' +
-    encodeURIComponent(address + ', Chile') + '&key=' + MAPS_KEY;
-  return fetch(url).then(function(r){ return r.json(); }).then(function(data){
-    if (data.status === 'OK' && data.results[0]) {
-      var loc = data.results[0].geometry.location;
-      return { lat: loc.lat, lng: loc.lng };
-    }
-    return null;
-  }).catch(function(){ return null; });
+  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=cl&q=' +
+    encodeURIComponent(address);
+  return fetch(url, { headers: { 'Accept-Language': 'es' } })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (data && data[0]) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+      return null;
+    }).catch(function(){ return null; });
 }
 
 function geocodificarPendientes(lista, idx, onDone) {
