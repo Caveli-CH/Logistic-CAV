@@ -286,7 +286,44 @@ var db = firebase.firestore();
 var clientes = [], entregas = [], filtro = 'todos';
 var clientesPendientes = [];
 var marcadorChofer = null, mapa = null;
-var jornadaId = new Date().toISOString().split('T')[0];
+var jornadaListener = null, gpsListener = null;
+
+var fechaBase = new Date().toISOString().split('T')[0];
+var jornadaId = fechaBase; // se recalcula al seleccionar chofer
+
+// ===== MULTI-CHOFER =====
+var CHOFERES_KEY = 'caveli_choferes_v1';
+var choferes = JSON.parse(localStorage.getItem(CHOFERES_KEY) || '["","","",""]');
+var choferActivo = 0; // índice 0-3
+
+function slugChofer(nombre) {
+  return nombre.toLowerCase()
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i')
+    .replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/ñ/g,'n')
+    .replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+
+function jornadaDeChofer(idx) {
+  var nombre = choferes[idx] || '';
+  if (!nombre.trim()) return null;
+  return fechaBase + '-' + slugChofer(nombre);
+}
+
+function guardarChoferes() {
+  localStorage.setItem(CHOFERES_KEY, JSON.stringify(choferes));
+}
+
+function publicarRegistro() {
+  var activos = choferes
+    .map(function(n, i) { return n.trim() ? { nombre: n.trim(), slug: slugChofer(n), idx: i } : null; })
+    .filter(Boolean);
+  if (activos.length === 0 || !db) return;
+  db.collection('jornadas').doc('registro-' + fechaBase).set({
+    choferes: activos,
+    fecha: fechaBase,
+    actualizado: new Date().toISOString()
+  }).catch(function(err) { console.warn('Error publicando registro:', err); });
+}
 
 // Selector de fecha
 var sel = document.getElementById('fecha-selector');
