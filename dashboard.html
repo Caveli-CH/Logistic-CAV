@@ -803,7 +803,10 @@ function renderEntregas() {
         '<span class="' + (dotClass[s]||'dot-pendiente') + ' status-dot" style="display:inline-block;margin-bottom:4px"></span><br>' +
         '<span style="font-size:10px;color:#888">' + (label[s]||s) + '</span>' +
         (d ? '<br><span class="entrega-hora">' + d.timestamp + '</span>' : '') +
-        '<br><button onclick="editarCliente(\'' + c.id + '\')" style="margin-top:5px;padding:3px 8px;font-size:10px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;cursor:pointer;color:#555">&#9998; Editar</button>' +
+        '<br><div style="display:flex;gap:4px;justify-content:flex-end;margin-top:5px">' +
+        '<button onclick="editarCliente(\'' + c.id + '\')" style="padding:3px 8px;font-size:10px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;cursor:pointer;color:#555">&#9998; Editar</button>' +
+        '<button onclick="confirmarEliminar(\'' + c.id + '\',\'' + c.name.replace(/'/g,"\\'") + '\')" style="padding:3px 8px;font-size:10px;background:#fff0f0;border:1px solid #f5c6c6;border-radius:5px;cursor:pointer;color:#d94545">&#10007; Borrar</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -1076,6 +1079,20 @@ document.addEventListener('keydown', function(e) {
 function iniciarApp() {
   escucharJornada();
   escucharGPS();
+}
+
+// ===== ELIMINAR CLIENTE =====
+function confirmarEliminar(id, nombre) {
+  abrirConfirm('&#10007;', 'Eliminar parada', '¿Eliminar a "' + nombre + '" de la ruta de hoy? Esta acción no se puede deshacer.',
+    function() { eliminarCliente(id); }
+  );
+}
+
+function eliminarCliente(id) {
+  var nuevaLista = clientes.filter(function(c){ return c.id !== id; });
+  db.collection('jornadas').doc(jornadaId).update({ clientes: nuevaLista })
+    .then(function() { setAlert('&#10003; Cliente eliminado de la ruta', 'success'); })
+    .catch(function(err) { setAlert('Error al eliminar: ' + err.message, 'error'); });
 }
 
 // ===== EDITAR CLIENTE =====
