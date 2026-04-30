@@ -398,9 +398,17 @@ function initFirebase() {
       console.warn('Persistencia offline no disponible:', err.code);
     });
 
-    jornadaId = new Date().toISOString().split('T')[0];
-    console.log('Firebase OK, jornada:', jornadaId);
-    escucharClientes();
+    var fechaHoy = new Date().toISOString().split('T')[0];
+    var sessionGuardada = localStorage.getItem('caveli_session');
+    if (sessionGuardada && sessionGuardada.startsWith(fechaHoy)) {
+      jornadaId = sessionGuardada;
+      console.log('Firebase OK, sesion:', jornadaId);
+      escucharClientes();
+    } else {
+      jornadaId = fechaHoy;
+      localStorage.removeItem('caveli_session');
+      mostrarSelectorSesion(fechaHoy);
+    }
     document.getElementById('fb-estado').textContent = 'Conectado a Firebase';
     document.getElementById('fb-estado').style.color = '#27ae60';
   } catch(e) {
@@ -617,21 +625,75 @@ function stopGPS() {
   document.getElementById('gps-status-bar').style.display = 'none';
 }
 
+// ===== SELECTOR DE SESION =====
+function mostrarSelectorSesion(fechaHoy) {
+  var modal = document.getElementById('modal-bienvenida');
+  var contenido = modal.querySelector('.modal-content');
+  contenido.innerHTML =
+    '<div style="text-align:center;margin-bottom:20px">' +
+      '<div style="font-size:48px">&#128666;</div>' +
+      '<h2 style="font-size:20px;color:var(--primary);margin-top:8px">Distribuidora Caveli</h2>' +
+      '<p style="font-size:14px;color:#666;margin-top:6px">\u00bfCu\u00e1l es tu ruta de hoy?</p>' +
+    '</div>' +
+    '<div id="sesion-lista" style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">' +
+      '<div style="text-align:center;color:#999;font-size:13px">&#9203; Buscando rutas...</div>' +
+    '</div>';
+  modal.style.display = 'flex';
+
+  db.collection('jornadas').doc('registro-' + fechaHoy).get()
+    .then(function(doc) {
+      var lista = document.getElementById('sesion-lista');
+      if (!lista) return;
+      if (!doc.exists || !doc.data().choferes || doc.data().choferes.length === 0) {
+        lista.innerHTML = '<div style="text-align:center;color:#999;font-size:13px">El jefe a\u00FAn no configur\u00F3 las rutas de hoy.</div>';
+        return;
+      }
+      var choferesDia = doc.data().choferes;
+      if (choferesDia.length === 1) {
+        seleccionarSesion(fechaHoy + '-' + choferesDia[0].slug, choferesDia[0].nombre);
+        return;
+      }
+      lista.innerHTML = choferesDia.map(function(c) {
+        return '<button onclick="seleccionarSesion(\'' + (fechaHoy + '-' + c.slug) + '\',\'' + c.nombre.replace(/'/g, "\\'") + '\')" ' +
+          'style="width:100%;padding:14px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer">&#128666; ' + c.nombre + '</button>';
+      }).join('');
+    })
+    .catch(function() {
+      var lista = document.getElementById('sesion-lista');
+      if (lista) lista.innerHTML = '<div style="text-align:center;color:#d94545;font-size:13px">Error al conectar. Verifica tu internet.</div>';
+    });
+}
+
+function seleccionarSesion(jid, nombre) {
+  jornadaId = jid;
+  localStorage.setItem('caveli_session', jid);
+  nombreChofer = nombre;
+  localStorage.setItem('caveli_chofer', nombre);
+  document.getElementById('modal-bienvenida').style.display = 'none';
+  mostrarNombreEnHeader();
+  escucharClientes();
+  showToast('Bienvenido, ' + nombre, 'success');
+}
+
 // ===== NOMBRE CHOFER =====
 var nombreChofer = '';
 
 function iniciarIdentificacion() {
   nombreChofer = localStorage.getItem('caveli_chofer') || '';
-  if (nombreChofer) {
-    // Ya tiene nombre guardado — mostrar en header y entrar directo
+  var sessionGuardada = localStorage.getItem('caveli_session');
+  var fechaHoy = new Date().toISOString().split('T')[0];
+  var sessionDeHoy = sessionGuardada && sessionGuardada.startsWith(fechaHoy);
+
+  if (nombreChofer && sessionDeHoy) {
     document.getElementById('modal-bienvenida').style.display = 'none';
     mostrarNombreEnHeader();
   } else {
-    // Primera vez — mostrar modal
-    document.getElementById('modal-bienvenida').style.display = 'flex';
-    setTimeout(function() {
-      document.getElementById('input-chofer-nombre').focus();
-    }, 300);
+    localStorage.removeItem('caveli_session');
+    if (db) {
+      mostrarSelectorSesion(fechaHoy);
+    } else {
+      document.getElementById('modal-bienvenida').style.display = 'flex';
+    }
   }
 }
 
@@ -652,10 +714,17 @@ function mostrarNombreEnHeader() {
 
 function cambiarChofer() {
   localStorage.removeItem('caveli_chofer');
+  localStorage.removeItem('caveli_session');
   nombreChofer = '';
-  document.getElementById('input-chofer-nombre').value = '';
-  document.getElementById('modal-bienvenida').style.display = 'flex';
-  setTimeout(function() { document.getElementById('input-chofer-nombre').focus(); }, 200);
+  if (clientesListener) { clientesListener(); clientesListener = null; }
+  clients = []; deliveries = [];
+  var fechaHoy = new Date().toISOString().split('T')[0];
+  jornadaId = fechaHoy;
+  if (db) {
+    mostrarSelectorSesion(fechaHoy);
+  } else {
+    document.getElementById('modal-bienvenida').style.display = 'flex';
+  }
 }
 
 document.getElementById('input-chofer-nombre').addEventListener('keydown', function(e) {
