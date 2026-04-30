@@ -359,6 +359,38 @@ function renombrarChofer(idx) {
   if (idx === choferActivo) switchChofer(idx);
 }
 
+function switchChofer(idx) {
+  choferActivo = idx;
+  var jid = jornadaDeChofer(idx);
+
+  // Limpiar estado anterior
+  clientes = []; entregas = []; filtro = 'todos';
+  primeraLectura = true; entregasAnteriores = {};
+  rastro = [];
+  if (polyline) { polyline.setMap(null); polyline = null; }
+  if (marcadorChofer) { marcadorChofer.setMap(null); marcadorChofer = null; }
+  document.getElementById('chofer-banner').style.display = 'none';
+  document.getElementById('rastro-info').style.display = 'none';
+  renderEstado(); renderEntregas();
+  renderTabs();
+
+  if (!jid) {
+    var nombre = prompt('Nombre del chofer ' + (idx + 1) + ':');
+    if (nombre && nombre.trim()) {
+      choferes[idx] = nombre.trim();
+      guardarChoferes();
+      publicarRegistro();
+    }
+    renderTabs();
+    jid = jornadaDeChofer(idx);
+    if (!jid) return;
+  }
+
+  jornadaId = jid;
+  escucharJornada();
+  escucharGPS();
+}
+
 // Selector de fecha
 var sel = document.getElementById('fecha-selector');
 sel.value = jornadaId;
@@ -495,6 +527,7 @@ function publicarClientes() {
       var msg = '&#10003; ' + clientesConCoords.length + ' clientes publicados';
       if (conCoords > 0) msg += ' &mdash; ' + conCoords + ' con coordenadas para optimizar ruta';
       setAlert(msg, 'success');
+      publicarRegistro();
       document.getElementById('upload-btns').style.display = 'none';
       clientesPendientes = [];
       btn.textContent = 'Publicar al chofer';
@@ -743,7 +776,8 @@ if ('Notification' in window && Notification.permission === 'default') {
 
 // ===== ESCUCHAR FIREBASE =====
 function escucharJornada() {
-  db.collection('jornadas').doc(jornadaId).onSnapshot(function(doc) {
+  if (jornadaListener) { jornadaListener(); jornadaListener = null; }
+  jornadaListener = db.collection('jornadas').doc(jornadaId).onSnapshot(function(doc) {
     if (!doc.exists) {
       clientes = []; entregas = [];
       primeraLectura = true;
@@ -777,7 +811,8 @@ function escucharJornada() {
 }
 
 function escucharGPS() {
-  db.collection('gps').doc(jornadaId).onSnapshot(function(doc) {
+  if (gpsListener) { gpsListener(); gpsListener = null; }
+  gpsListener = db.collection('gps').doc(jornadaId).onSnapshot(function(doc) {
     if (!doc.exists) return;
     var data = doc.data();
     var ts   = data.timestamp ? new Date(data.timestamp).toLocaleTimeString('es-CL') : '-';
@@ -1148,6 +1183,11 @@ document.addEventListener('keydown', function(e) {
 });
 
 function iniciarApp() {
+  // Inicializar tab activo
+  renderTabs();
+  if (choferes[0] && choferes[0].trim()) {
+    jornadaId = jornadaDeChofer(0) || jornadaId;
+  }
   escucharJornada();
   escucharGPS();
 }
