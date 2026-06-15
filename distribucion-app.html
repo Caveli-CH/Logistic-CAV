@@ -1076,15 +1076,20 @@ function saveDelivery() {
   var c = clients.filter(function(x) { return x.id === selectedClientId; })[0];
   var prods = (c && c.productos) || [];
   var devoluciones = [];
-  document.querySelectorAll('.dev-check').forEach(function(cb) {
-    if (!cb.checked) return;
-    var idx2 = Number(cb.dataset.idx);
-    var qInput = document.querySelector('.dev-qty[data-idx="' + idx2 + '"]');
-    var qty = parseFloat(qInput && qInput.value) || 0;
-    var p = prods[idx2];
-    if (!p || qty <= 0) return;
-    devoluciones.push({ producto_id: p.producto_id, nombre: p.nombre, cantidad: qty, es_pesable: !!p.es_pesable });
-  });
+  // Solo se registran devoluciones en entregas parciales o fallidas.
+  if (status === 'parcial' || status === 'fallido') {
+    document.querySelectorAll('.dev-check').forEach(function(cb) {
+      if (!cb.checked) return;
+      var idx2 = Number(cb.dataset.idx);
+      var qInput = document.querySelector('.dev-qty[data-idx="' + idx2 + '"]');
+      var qty = parseFloat(qInput && qInput.value) || 0;
+      var p = prods[idx2];
+      if (!p || qty <= 0) return;
+      // Nunca devolver más de lo pedido.
+      qty = Math.min(qty, Number(p.cantidad) || qty);
+      devoluciones.push({ producto_id: p.producto_id, nombre: p.nombre, cantidad: qty, es_pesable: !!p.es_pesable });
+    });
+  }
   var rec = {
     clientId:  selectedClientId,
     status:    status,
