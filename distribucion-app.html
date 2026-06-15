@@ -295,6 +295,7 @@ tr:hover td{background:#f9f9f9;}
       <button class="modal-close" onclick="closeModal()">&#10005;</button>
     </div>
     <div id="modal-info"></div>
+    <div id="pedido-productos" style="display:none;background:#f8faf8;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;"></div>
     <form id="delivery-form">
       <div class="form-group">
         <label>Estado de la entrega</label>
@@ -898,6 +899,7 @@ function openModal(clientId) {
     (c.fecha  ? '&#128197; ' + c.fecha  + '<br>' : '') +
     '<a href="' + murl + '" target="_blank" style="display:inline-block;margin-top:8px;padding:7px 14px;background:#4285F4;color:white;border-radius:6px;text-decoration:none;font-weight:700;font-size:13px">&#128506; Abrir en Google Maps</a>' +
     '</div>';
+  renderProductosPedido(c, d);
   document.getElementById('d-status').value = d ? d.status : '';
   document.getElementById('d-status').dispatchEvent(new Event('change'));
   document.getElementById('d-pago').value   = d ? (d.pago || '') : '';
@@ -925,6 +927,23 @@ function openModal(clientId) {
   document.getElementById('delivery-modal').classList.add('show');
 }
 function closeModal() { document.getElementById('delivery-modal').classList.remove('show'); }
+
+function renderProductosPedido(c, d) {
+  var box = document.getElementById('pedido-productos');
+  var prods = (c && c.productos) || [];
+  if (!prods.length) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = 'block';
+  box.innerHTML =
+    '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--primary)">&#128230; Productos del pedido</div>' +
+    prods.map(function(p) {
+      return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #eee">' +
+        '<span>' + p.nombre + '</span><span style="font-weight:600">x' + p.cantidad + '</span></div>';
+    }).join('');
+}
 
 // ===== FIRMA DIGITAL =====
 var firmaCanvas, firmaCtx, firmaActiva = false, firmaTieneTrazo = false;
