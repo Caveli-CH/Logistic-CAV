@@ -312,6 +312,12 @@ tr:hover td{background:#f9f9f9;}
           var pg = document.getElementById('pago-group');
           pg.style.display = requierePago ? 'block' : 'none';
           if (!requierePago) document.getElementById('d-pago').value = '';
+          var dg = document.getElementById('devolucion-group');
+          var mostrarDev = this.value === 'parcial' || this.value === 'fallido';
+          dg.style.display = mostrarDev ? 'block' : 'none';
+          if (this.value === 'fallido') {
+            document.querySelectorAll('.dev-check').forEach(function(cb) { if (!cb.checked) { cb.checked = true; onDevCheck(cb); } });
+          }
         });
       </script>
       <div class="form-group" id="pago-group" style="display:none">
@@ -324,6 +330,11 @@ tr:hover td{background:#f9f9f9;}
           <option value="Cheque">📄 Cheque</option>
           <option value="Credito">🔖 Crédito</option>
         </select>
+      </div>
+      <div class="form-group" id="devolucion-group" style="display:none">
+        <label>&#8617; ¿Qué devuelve el cliente?</label>
+        <div id="devolucion-items" style="display:flex;flex-direction:column;gap:4px"></div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Marca el producto y ajusta las unidades si solo devuelve algunas.</div>
       </div>
       <div class="form-group">
         <label>Notas (opcional)</label>
@@ -930,10 +941,11 @@ function closeModal() { document.getElementById('delivery-modal').classList.remo
 
 function renderProductosPedido(c, d) {
   var box = document.getElementById('pedido-productos');
+  var devBox = document.getElementById('devolucion-items');
   var prods = (c && c.productos) || [];
   if (!prods.length) {
-    box.style.display = 'none';
-    box.innerHTML = '';
+    box.style.display = 'none'; box.innerHTML = '';
+    devBox.innerHTML = '<div style="color:#888;font-size:12px">Este pedido no trae detalle de productos.</div>';
     return;
   }
   box.style.display = 'block';
@@ -943,6 +955,28 @@ function renderProductosPedido(c, d) {
       return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #eee">' +
         '<span>' + p.nombre + '</span><span style="font-weight:600">x' + p.cantidad + '</span></div>';
     }).join('');
+  var prev = {};
+  ((d && d.devoluciones) || []).forEach(function(x, i) { prev[x.producto_id != null ? x.producto_id : i] = x; });
+  devBox.innerHTML = prods.map(function(p, i) {
+    var key = p.producto_id != null ? p.producto_id : i;
+    var dev = prev[key];
+    var checked = dev ? ' checked' : '';
+    var qty = dev ? dev.cantidad : p.cantidad;
+    var disabled = dev ? '' : ' disabled';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #eee">' +
+      '<input type="checkbox" class="dev-check" data-idx="' + i + '" onchange="onDevCheck(this)"' + checked + '>' +
+      '<span style="flex:1;font-size:13px">' + p.nombre + '</span>' +
+      '<input type="number" class="dev-qty" data-idx="' + i + '" value="' + qty + '" min="1" max="' + p.cantidad + '" step="1"' + disabled +
+        ' style="width:62px;padding:5px;border:1.5px solid var(--border);border-radius:6px">' +
+      '<span style="font-size:12px;color:#888">/ ' + p.cantidad + '</span>' +
+      '</div>';
+  }).join('');
+}
+function onDevCheck(cb) {
+  var q = document.querySelector('.dev-qty[data-idx="' + cb.dataset.idx + '"]');
+  if (!q) return;
+  q.disabled = !cb.checked;
+  if (cb.checked && (!q.value || Number(q.value) <= 0)) q.value = q.max;
 }
 
 // ===== FIRMA DIGITAL =====
@@ -1039,6 +1073,18 @@ function saveDelivery() {
   var notes = document.getElementById('d-notes').value;
   var idx   = -1;
   deliveries.forEach(function(d, i) { if (d.clientId === selectedClientId) idx = i; });
+  var c = clients.filter(function(x) { return x.id === selectedClientId; })[0];
+  var prods = (c && c.productos) || [];
+  var devoluciones = [];
+  document.querySelectorAll('.dev-check').forEach(function(cb) {
+    if (!cb.checked) return;
+    var idx2 = Number(cb.dataset.idx);
+    var qInput = document.querySelector('.dev-qty[data-idx="' + idx2 + '"]');
+    var qty = parseFloat(qInput && qInput.value) || 0;
+    var p = prods[idx2];
+    if (!p || qty <= 0) return;
+    devoluciones.push({ producto_id: p.producto_id, nombre: p.nombre, cantidad: qty, es_pesable: !!p.es_pesable });
+  });
   var rec = {
     clientId:  selectedClientId,
     status:    status,
@@ -1048,6 +1094,7 @@ function saveDelivery() {
     foto:      fotoBase64 || '',
     firma:     obtenerFirmaBase64()
   };
+  if (devoluciones.length) rec.devoluciones = devoluciones;
   if (idx >= 0) deliveries[idx] = rec; else deliveries.push(rec);
   save(); updateAll(); return true;
 }
