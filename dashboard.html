@@ -1185,6 +1185,9 @@ document.addEventListener('keydown', function(e) {
 function iniciarApp() {
   // Inicializar tab activo
   renderTabs();
+  // Publicar el registro del día con los choferes ya guardados, para que
+  // CAV PRO y la app del chofer puedan verlos sin tener que reeditarlos.
+  publicarRegistro();
   if (choferes[0] && choferes[0].trim()) {
     jornadaId = jornadaDeChofer(0) || jornadaId;
   }
