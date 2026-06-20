@@ -17,14 +17,14 @@ header h1{font-size:20px;font-weight:700;}
 .fecha-selector{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:6px 10px;border-radius:6px;font-size:13px;cursor:pointer;}
 .container{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 380px;gap:20px;}
 @media(max-width:900px){.container{grid-template-columns:1fr;}}
-.section{background:white;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+.section{background:white;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.07);margin-bottom:16px;}
 .section h2{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
 .stat-card{background:var(--accent);padding:14px;border-radius:8px;text-align:center;}
 .stat-label{font-size:11px;color:#666;margin-bottom:4px;}
 .stat-value{font-size:24px;font-weight:700;color:var(--primary);}
 .stat-value.money{font-size:18px;}
-#map{width:100%;height:420px;border-radius:8px;background:#e8f0e8;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;overflow:hidden;}
+#map{width:100%;height:320px;border-radius:8px;background:#e8f0e8;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;overflow:hidden;}
 .chofer-info{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;padding:14px;border-radius:8px;margin-bottom:16px;}
 .chofer-info h3{font-size:13px;opacity:0.85;margin-bottom:4px;}
 .chofer-name{font-size:17px;font-weight:700;}
@@ -50,25 +50,179 @@ header h1{font-size:20px;font-weight:700;}
 .ultima-act{font-size:11px;color:#999;margin-top:8px;text-align:right;}
 .progress-bar{background:#eee;border-radius:10px;height:8px;margin:10px 0;}
 .progress-fill{background:var(--success);height:8px;border-radius:10px;transition:width 0.5s;}
-.btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity 0.2s;}
+.btn:hover{opacity:0.85;}
 .btn-primary{background:var(--primary);color:white;}
+.btn-danger{background:var(--danger);color:white;}
+.btn-success{background:var(--success);color:white;}
 .gps-coords{font-size:11px;color:rgba(255,255,255,0.75);margin-top:4px;}
+.notif-toast{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:320px;}
+.notif-item{background:white;border-radius:10px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.18);border-left:5px solid #27ae60;display:flex;align-items:flex-start;gap:10px;animation:slideIn 0.3s ease;pointer-events:all;}
+.notif-item.fallido{border-left-color:#d94545;}
+.notif-item.parcial{border-left-color:#e67e22;}
+.notif-item.gps{border-left-color:#2d5f4f;}
+@keyframes slideIn{from{transform:translateX(120%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+@keyframes slideOut{from{opacity:1;}to{opacity:0;transform:translateX(120%);}}
+.notif-icon{font-size:22px;flex-shrink:0;margin-top:1px;}
+.notif-body{flex:1;}
+.notif-title{font-weight:700;font-size:13px;color:#333;}
+.notif-sub{font-size:12px;color:#888;margin-top:2px;}
+.notif-close{background:none;border:none;cursor:pointer;color:#bbb;font-size:16px;padding:0;line-height:1;align-self:flex-start;}
+.notif-bell{cursor:pointer;font-size:18px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:5px 10px;color:white;transition:background 0.2s;}
+.notif-bell:hover{background:rgba(255,255,255,0.3);}
+.notif-badge{display:inline-block;background:#e74c3c;color:white;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:4px;font-weight:700;vertical-align:middle;}
+/* PIN */
+.pin-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#1a3a2e,#2d5f4f);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.pin-box{background:white;border-radius:20px;padding:36px 32px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+.pin-logo{font-size:52px;margin-bottom:12px;}
+.pin-titulo{font-size:22px;font-weight:700;color:var(--primary);margin-bottom:4px;}
+.pin-sub{font-size:13px;color:#888;margin-bottom:24px;}
+.pin-dots{display:flex;justify-content:center;gap:14px;margin-bottom:24px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:white;transition:all 0.15s;}
+.pin-dot.filled{background:var(--primary);border-color:var(--primary);}
+.pin-dot.error{background:#d94545;border-color:#d94545;animation:shake 0.4s;}
+.pin-teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.pin-btn{padding:18px;font-size:22px;font-weight:700;border:2px solid #eee;border-radius:12px;background:white;cursor:pointer;color:#333;transition:all 0.1s;}
+.pin-btn:hover{background:#f0f8f4;border-color:var(--primary);}
+.pin-btn:active{transform:scale(0.94);background:#d4edda;}
+.pin-btn.borrar{font-size:16px;color:#888;}
+.pin-error-msg{font-size:13px;color:#d94545;min-height:18px;margin-bottom:8px;}
+.pin-cambiar{font-size:12px;color:#aaa;cursor:pointer;text-decoration:underline;margin-top:8px;display:inline-block;}
+.btn-pin-cambiar{background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:12px;padding:5px 10px;border-radius:6px;}
+.btn-pin-cambiar:hover{color:white;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+/* Upload section */
+.upload-zone{border:2px dashed var(--primary);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:background 0.2s;}
+.upload-zone:hover,.upload-zone.drag{background:#f0f8f4;}
+.upload-zone p{font-size:14px;font-weight:600;color:var(--primary);margin:8px 0 4px;}
+.upload-zone small{color:#888;font-size:12px;}
+.upload-icon{font-size:32px;}
+.preview-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.preview-box table{width:100%;border-collapse:collapse;font-size:12px;}
+.preview-box th{background:var(--primary);color:white;padding:8px 10px;text-align:left;}
+.preview-box td{padding:7px 10px;border-bottom:1px solid var(--border);}
+.preview-box tr:last-child td{border-bottom:none;}
+.preview-box tr:nth-child(even){background:#f9f9f9;}
+.alert{padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:10px;}
+.alert-success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
+.alert-error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
+.btn-group{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+.chofer-tabs{display:flex;background:var(--primary);padding:0 20px;gap:4px;border-top:1px solid rgba(255,255,255,0.15);}
+.chofer-tab{padding:10px 18px;color:rgba(255,255,255,0.65);font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.15s;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.chofer-tab:hover{color:rgba(255,255,255,0.9);}
+.chofer-tab.active{color:white;border-bottom-color:white;}
+.chofer-tab-nombre{max-width:120px;overflow:hidden;text-overflow:ellipsis;}
+.chofer-tab-edit{opacity:0;font-size:11px;padding:1px 4px;background:rgba(255,255,255,0.2);border:none;border-radius:3px;color:white;cursor:pointer;transition:opacity 0.15s;}
+.chofer-tab:hover .chofer-tab-edit{opacity:1;}
+.chofer-tab.active .chofer-tab-edit{opacity:0.7;}
 </style>
 </head>
 <body>
 
+<!-- MODAL PIN -->
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <div class="pin-logo">&#128274;</div>
+    <div class="pin-titulo">Dashboard Caveli</div>
+    <div class="pin-sub" id="pin-sub">Ingresa tu PIN de 4 digitos</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-error-msg" id="pin-error"></div>
+    <div class="pin-teclado">
+      <button class="pin-btn" onclick="pinTecla('1')">1</button>
+      <button class="pin-btn" onclick="pinTecla('2')">2</button>
+      <button class="pin-btn" onclick="pinTecla('3')">3</button>
+      <button class="pin-btn" onclick="pinTecla('4')">4</button>
+      <button class="pin-btn" onclick="pinTecla('5')">5</button>
+      <button class="pin-btn" onclick="pinTecla('6')">6</button>
+      <button class="pin-btn" onclick="pinTecla('7')">7</button>
+      <button class="pin-btn" onclick="pinTecla('8')">8</button>
+      <button class="pin-btn" onclick="pinTecla('9')">9</button>
+      <button class="pin-btn" onclick="pinLimpiar()">&#8635;</button>
+      <button class="pin-btn" onclick="pinTecla('0')">0</button>
+      <button class="pin-btn borrar" onclick="pinBorrar()">&#9003;</button>
+    </div>
+    <span class="pin-cambiar" id="pin-cambiar-link" style="display:none" onclick="mostrarCambiarPin()">Cambiar PIN</span>
+  </div>
+</div>
+
 <header>
-  <h1>&#128666; Caveli &mdash; Dashboard</h1>
+  <h1>&#128666; Caveli &mdash; Dashboard Jefe</h1>
   <div class="header-right">
     <input type="date" class="fecha-selector" id="fecha-selector">
+    <button class="btn-pin-cambiar" onclick="pedirCambiarPin()" title="Cambiar PIN">&#128274; PIN</button>
+    <button class="notif-bell" id="notif-bell" onclick="toggleSonido()" title="Activar/desactivar sonido">&#128276; Sonido</button>
     <span class="live-badge offline" id="live-badge">&#9679; CONECTANDO...</span>
   </div>
 </header>
 
+<div class="chofer-tabs" id="chofer-tabs"></div>
+
+<div class="notif-toast" id="notif-toast"></div>
+
 <div class="container">
 
-  <!-- COLUMNA IZQUIERDA: mapa + stats -->
+  <!-- COLUMNA IZQUIERDA -->
   <div>
+
+    <!-- CARGA DE EXCEL -->
+    <div class="section">
+      <h2>&#128196; Cargar clientes del dia</h2>
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon">&#128196;</div>
+        <p>Haz clic o arrastra tu Excel aqui</p>
+        <small>Lee automaticamente la hoja Pendientes &bull; .xlsx / .xls / .csv</small>
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
+      </div>
+      <div id="upload-alert"></div>
+      <div id="preview-box" class="preview-box" style="display:none"></div>
+      <div class="btn-group" id="upload-btns" style="display:none">
+        <button class="btn btn-success" id="btn-publicar" onclick="confirmarPublicar()">&#9654; Publicar al chofer</button>
+        <button class="btn btn-secondary" onclick="cancelarCarga()">&#10005; Cancelar</button>
+      </div>
+      <div class="btn-group" id="republicar-btns" style="display:none;margin-top:12px">
+        <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">&#128196; Cargar nuevo Excel</button>
+        <button class="btn btn-danger" onclick="confirmarNuevaJornada()">&#8635; Nueva jornada</button>
+      </div>
+    </div>
+
+    <!-- AGREGAR CLIENTE MANUAL -->
+    <div class="section">
+      <h2>&#43; Agregar parada manualmente</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Nombre *</label>
+          <input type="text" id="m-name" placeholder="Ej: Juan Garcia" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px"></div>
+        <div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Direccion *</label>
+          <input type="text" id="m-address" placeholder="Ej: Av. Principal 123" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px"></div>
+        <div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Telefono</label>
+          <input type="tel" id="m-phone" placeholder="+56912345678" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px"></div>
+        <div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Total ($)</label>
+          <input type="number" id="m-total" placeholder="0" min="0" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px"></div>
+        <div style="grid-column:span 2"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Notas</label>
+          <input type="text" id="m-notes" placeholder="Ej: Piso 2, preguntar por Maria" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px"></div>
+      </div>
+      <div id="manual-alert" style="margin-top:10px"></div>
+      <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="agregarClienteManual()">&#43; Agregar y publicar al chofer</button>
+    </div>
+
+    <!-- CONFIRM OVERLAY -->
+    <div id="confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:20px">
+      <div style="background:white;border-radius:14px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.3)">
+        <div style="font-size:36px;margin-bottom:12px" id="confirm-icon">&#9888;</div>
+        <h3 style="font-size:17px;font-weight:700;margin-bottom:8px" id="confirm-title">Confirmar</h3>
+        <p style="font-size:14px;color:#666;margin-bottom:24px" id="confirm-msg"></p>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary" style="flex:1" onclick="cerrarConfirm()">Cancelar</button>
+          <button class="btn btn-danger" style="flex:1" id="confirm-ok-btn">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS -->
     <div class="stats-grid" id="stats-grid">
       <div class="stat-card"><div class="stat-label">Clientes hoy</div><div class="stat-value" id="s-total">-</div></div>
       <div class="stat-card"><div class="stat-label">Entregados</div><div class="stat-value" id="s-comp">-</div></div>
@@ -77,19 +231,22 @@ header h1{font-size:20px;font-weight:700;}
       <div class="stat-card"><div class="stat-label">Eficiencia</div><div class="stat-value" id="s-ef">0%</div></div>
       <div class="stat-card"><div class="stat-label">Fallidos</div><div class="stat-value" id="s-fall">-</div></div>
     </div>
+
+    <!-- MAPA -->
     <div class="section">
       <h2>&#128506; Ubicacion del chofer (tiempo real)</h2>
-      <div id="map">Cargando mapa...</div>
+      <div id="map" style="height:400px"></div>
       <p class="ultima-act" id="ultima-gps">Ultima actualizacion GPS: -</p>
+      <p class="ultima-act" id="rastro-info" style="display:none"></p>
     </div>
   </div>
 
-  <!-- COLUMNA DERECHA: lista de entregas -->
+  <!-- COLUMNA DERECHA -->
   <div>
     <div class="section">
       <div id="chofer-banner" class="chofer-info" style="display:none">
-        <h3>Chofer en ruta</h3>
-        <div class="chofer-name">Distribuidora Caveli</div>
+        <h3>&#128100; Chofer en ruta</h3>
+        <div class="chofer-name" id="chofer-nombre">-</div>
         <div class="chofer-sub" id="chofer-sub">-</div>
         <div class="gps-coords" id="gps-coords"></div>
       </div>
@@ -102,9 +259,12 @@ header h1{font-size:20px;font-weight:700;}
       </div>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
       <div class="entregas-list" id="entregas-list">
-        <div class="empty">Esperando datos del chofer...</div>
+        <div class="empty">Carga clientes para comenzar...</div>
       </div>
       <p class="ultima-act" id="ultima-datos">Ultima actualizacion: -</p>
+      <div style="margin-top:12px" id="reporte-btns" style="display:none">
+        <button class="btn btn-primary" style="width:100%" onclick="descargarReporte()">&#11015; Descargar reporte CSV</button>
+      </div>
     </div>
   </div>
 
@@ -113,6 +273,10 @@ header h1{font-size:20px;font-weight:700;}
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- SheetJS para leer Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Google Maps -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD2EObXtTMWhGm3J9EtmuNIdS1oH9pqKOs&callback=initMap" async defer></script>
 
 <script>
 // ===== CONFIG =====
@@ -130,38 +294,350 @@ var db = firebase.firestore();
 
 // ===== ESTADO LOCAL =====
 var clientes = [], entregas = [], filtro = 'todos';
+var clientesPendientes = [];
 var marcadorChofer = null, mapa = null;
-var jornadaId = new Date().toISOString().split('T')[0];
+var jornadaListener = null, gpsListener = null;
+
+var fechaBase = new Date().toISOString().split('T')[0];
+var jornadaId = fechaBase; // se recalcula al seleccionar chofer
+
+// ===== MULTI-CHOFER =====
+var CHOFERES_KEY = 'caveli_choferes_v1';
+var choferes = JSON.parse(localStorage.getItem(CHOFERES_KEY) || '["","","",""]');
+var choferActivo = 0; // índice 0-3
+
+function slugChofer(nombre) {
+  return nombre.toLowerCase()
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i')
+    .replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/ñ/g,'n')
+    .replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+
+function jornadaDeChofer(idx) {
+  var nombre = choferes[idx] || '';
+  if (!nombre.trim()) return null;
+  return fechaBase + '-' + slugChofer(nombre);
+}
+
+function guardarChoferes() {
+  localStorage.setItem(CHOFERES_KEY, JSON.stringify(choferes));
+}
+
+function publicarRegistro() {
+  var activos = choferes
+    .map(function(n, i) { return n.trim() ? { nombre: n.trim(), slug: slugChofer(n), idx: i } : null; })
+    .filter(Boolean);
+  if (activos.length === 0 || !db) return;
+  db.collection('jornadas').doc('registro-' + fechaBase).set({
+    choferes: activos,
+    fecha: fechaBase,
+    actualizado: new Date().toISOString()
+  }).catch(function(err) { console.warn('Error publicando registro:', err); });
+}
+
+function renderTabs() {
+  var cont = document.getElementById('chofer-tabs');
+  if (!cont) return;
+  cont.innerHTML = choferes.map(function(nombre, i) {
+    var label = nombre.trim() || ('Chofer ' + (i + 1));
+    var activa = i === choferActivo;
+    return '<div class="chofer-tab' + (activa ? ' active' : '') + '" onclick="switchChofer(' + i + ')">' +
+      '<span class="chofer-tab-nombre">' + label + '</span>' +
+      '<button class="chofer-tab-edit" onclick="event.stopPropagation();renombrarChofer(' + i + ')" title="Renombrar">&#9998;</button>' +
+      '</div>';
+  }).join('');
+}
+
+function renombrarChofer(idx) {
+  var actual = choferes[idx] || '';
+  var nuevo  = prompt('Nombre del chofer ' + (idx + 1) + ':', actual);
+  if (nuevo === null) return;
+  choferes[idx] = nuevo.trim();
+  guardarChoferes();
+  publicarRegistro();
+  renderTabs();
+  if (idx === choferActivo) switchChofer(idx);
+}
+
+function switchChofer(idx) {
+  choferActivo = idx;
+  var jid = jornadaDeChofer(idx);
+
+  // Limpiar estado anterior
+  clientes = []; entregas = []; filtro = 'todos';
+  primeraLectura = true; entregasAnteriores = {};
+  rastro = [];
+  if (polyline) { polyline.setMap(null); polyline = null; }
+  if (marcadorChofer) { marcadorChofer.setMap(null); marcadorChofer = null; }
+  document.getElementById('chofer-banner').style.display = 'none';
+  document.getElementById('rastro-info').style.display = 'none';
+  renderEstado(); renderEntregas();
+  renderTabs();
+
+  if (!jid) {
+    var nombre = prompt('Nombre del chofer ' + (idx + 1) + ':');
+    if (nombre && nombre.trim()) {
+      choferes[idx] = nombre.trim();
+      guardarChoferes();
+      publicarRegistro();
+    }
+    renderTabs();
+    jid = jornadaDeChofer(idx);
+    if (!jid) return;
+  }
+
+  jornadaId = jid;
+  escucharJornada();
+  escucharGPS();
+}
 
 // Selector de fecha
 var sel = document.getElementById('fecha-selector');
 sel.value = jornadaId;
 sel.addEventListener('change', function() {
   jornadaId = this.value;
+  primeraLectura = true;
+  entregasAnteriores = {};
+  // Limpiar rastro al cambiar de dia
+  rastro = [];
+  if (polyline) { polyline.setMap(null); polyline = null; }
+  if (marcadorChofer) { marcadorChofer.setMap(null); marcadorChofer = null; }
+  document.getElementById('rastro-info').style.display = 'none';
   escucharJornada();
   escucharGPS();
 });
 
+// ===== UPLOAD EXCEL =====
+var uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('click', function() { document.getElementById('file-input').click(); });
+uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', function() { this.classList.remove('drag'); });
+uploadZone.addEventListener('drop', function(e) {
+  e.preventDefault(); this.classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+});
+document.getElementById('file-input').addEventListener('change', function(e) {
+  handleFile(e.target.files[0]);
+  this.value = '';
+});
+
+function handleFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb   = XLSX.read(data, {type: 'array'});
+      var sn   = wb.SheetNames.filter(function(n){return n==='Pendientes';})[0]
+              || wb.SheetNames.filter(function(n){return n==='Detalle';})[0]
+              || wb.SheetNames[0];
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[sn]);
+      clientesPendientes = rows.map(function(r, i) {
+        var nota = [r['Tipo entrega'], r['Estado']].filter(function(v){return v && v !== 'Sin verificar';}).join(' | ');
+        return {
+          id:       String(r['#'] || (Date.now() + i)),
+          name:     r.Cliente    || r.cliente || r.Nombre  || r.nombre || '',
+          address:  r['Direcci\u00f3n'] || r['Direccion'] || r.direccion || r.Address || '',
+          phone:    String(r['Tel\u00e9fono'] || r['Telefono'] || r.telefono || r.Phone || ''),
+          notes:    nota || r.Notas || r.notas || '',
+          total:    Number(r.Total || r.total || 0),
+          fecha:    String(r.Fecha || r.fecha || ''),
+          vendedor: String(r.Vendedor || r.vendedor || '')
+        };
+      }).filter(function(c){return c.name && c.address;});
+
+      if (clientesPendientes.length === 0) {
+        setAlert('No se encontraron clientes validos en la hoja "' + sn + '"', 'error');
+        return;
+      }
+      setAlert('Hoja: <strong>' + sn + '</strong> &mdash; ' + clientesPendientes.length + ' clientes listos para publicar', 'success');
+      mostrarPreview(clientesPendientes);
+      document.getElementById('upload-btns').style.display = 'flex';
+    } catch(err) {
+      setAlert('Error al leer el archivo: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setAlert(msg, type) {
+  document.getElementById('upload-alert').innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+}
+
+function mostrarPreview(data) {
+  var box = document.getElementById('preview-box');
+  var h = '<table><thead><tr><th>#</th><th>Cliente</th><th>Direccion</th><th>Total</th></tr></thead><tbody>';
+  data.slice(0, 8).forEach(function(c, i) {
+    h += '<tr><td>' + (i+1) + '</td><td>' + c.name + '</td><td>' + c.address + '</td><td>' + (c.total ? '$'+Number(c.total).toLocaleString('es-CL') : '-') + '</td></tr>';
+  });
+  if (data.length > 8) h += '<tr><td colspan="4" style="text-align:center;color:#999">... y ' + (data.length-8) + ' mas</td></tr>';
+  h += '</tbody></table>';
+  box.innerHTML = h;
+  box.style.display = 'block';
+}
+
+// ===== GEOCODIFICACION =====
+var MAPS_KEY = 'AIzaSyD2EObXtTMWhGm3J9EtmuNIdS1oH9pqKOs';
+
+function geocodificarDireccion(address) {
+  var url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' +
+    encodeURIComponent(address + ', Chile') + '&key=' + MAPS_KEY;
+  return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.status === 'OK' && data.results[0]) {
+      var loc = data.results[0].geometry.location;
+      return { lat: loc.lat, lng: loc.lng };
+    }
+    return null;
+  }).catch(function() { return null; });
+}
+
+function geocodificarTodos(lista, idx, resultados, onDone) {
+  if (idx >= lista.length) { onDone(resultados); return; }
+  setAlert('Geocodificando ' + (idx+1) + ' / ' + lista.length + ': ' + lista[idx].name + '...', 'success');
+  geocodificarDireccion(lista[idx].address).then(function(coords) {
+    resultados[idx] = coords; // null si fallo
+    setTimeout(function() {
+      geocodificarTodos(lista, idx+1, resultados, onDone);
+    }, 120); // esperar 120ms entre llamadas para no exceder rate limit
+  });
+}
+
+function publicarClientes() {
+  if (clientesPendientes.length === 0) return;
+  var btn = document.getElementById('btn-publicar');
+  btn.textContent = 'Geocodificando direcciones...';
+  btn.disabled = true;
+
+  geocodificarTodos(clientesPendientes, 0, [], function(coordsArray) {
+    // Agregar lat/lng a cada cliente
+    var clientesConCoords = clientesPendientes.map(function(c, i) {
+      var coords = coordsArray[i];
+      if (coords) { c.lat = coords.lat; c.lng = coords.lng; }
+      return c;
+    });
+    var conCoords = coordsArray.filter(function(x){return x!==null;}).length;
+    btn.textContent = 'Publicando...';
+
+    db.collection('jornadas').doc(jornadaId).set({
+      clientes: clientesConCoords,
+      entregas: [],
+      startTime: null,
+      ultimaActualizacion: new Date().toISOString()
+    }).then(function() {
+      var msg = '&#10003; ' + clientesConCoords.length + ' clientes publicados';
+      if (conCoords > 0) msg += ' &mdash; ' + conCoords + ' con coordenadas para optimizar ruta';
+      setAlert(msg, 'success');
+      publicarRegistro();
+      document.getElementById('upload-btns').style.display = 'none';
+      clientesPendientes = [];
+      btn.textContent = 'Publicar al chofer';
+      btn.disabled = false;
+    }).catch(function(err) {
+      setAlert('Error al publicar: ' + err.message, 'error');
+      btn.textContent = 'Publicar al chofer';
+      btn.disabled = false;
+    });
+  });
+}
+
+// ===== AGREGAR CLIENTE MANUAL =====
+function agregarClienteManual() {
+  var nombre  = document.getElementById('m-name').value.trim();
+  var dir     = document.getElementById('m-address').value.trim();
+  var tel     = document.getElementById('m-phone').value.trim();
+  var total   = Number(document.getElementById('m-total').value) || 0;
+  var notas   = document.getElementById('m-notes').value.trim();
+  var alertEl = document.getElementById('manual-alert');
+
+  if (!nombre || !dir) {
+    alertEl.innerHTML = '<div class="alert alert-error">Nombre y direccion son obligatorios</div>';
+    return;
+  }
+
+  alertEl.innerHTML = '<div class="alert alert-success">Geocodificando direccion...</div>';
+
+  var nuevo = {
+    id:       String(Date.now()),
+    name:     nombre,
+    address:  dir,
+    phone:    tel,
+    notes:    notas,
+    total:    total,
+    fecha:    jornadaId,
+    vendedor: ''
+  };
+
+  // Geocodificar la nueva direccion
+  geocodificarDireccion(dir).then(function(coords) {
+    if (coords) { nuevo.lat = coords.lat; nuevo.lng = coords.lng; }
+
+    // Agregar al final de la lista actual y publicar
+    var listaActual = clientes.slice();
+    listaActual.push(nuevo);
+
+    db.collection('jornadas').doc(jornadaId).set({
+      clientes: listaActual,
+      entregas: entregas,
+      startTime: null,
+      ultimaActualizacion: new Date().toISOString()
+    }, { merge: true }).then(function() {
+      alertEl.innerHTML = '<div class="alert alert-success">&#10003; ' + nombre + ' agregado a la lista del chofer' + (coords ? ' (con coordenadas)' : '') + '</div>';
+      // Limpiar form
+      document.getElementById('m-name').value    = '';
+      document.getElementById('m-address').value = '';
+      document.getElementById('m-phone').value   = '';
+      document.getElementById('m-total').value   = '';
+      document.getElementById('m-notes').value   = '';
+      setTimeout(function() { alertEl.innerHTML = ''; }, 4000);
+    }).catch(function(err) {
+      alertEl.innerHTML = '<div class="alert alert-error">Error: ' + err.message + '</div>';
+    });
+  });
+}
+
+function cancelarCarga() {
+  clientesPendientes = [];
+  document.getElementById('upload-alert').innerHTML = '';
+  document.getElementById('preview-box').style.display = 'none';
+  document.getElementById('upload-btns').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
 // ===== MAPA GOOGLE MAPS =====
+var rastro = [];
+var polyline = null;
+var marcadoresEntrega = [];
+
 function initMap() {
   mapa = new google.maps.Map(document.getElementById('map'), {
-    center: {lat: -33.0, lng: -71.2},
+    center: {lat: -33.4489, lng: -70.6693},
     zoom: 12,
     mapTypeControl: false,
-    streetViewControl: false
+    streetViewControl: false,
+    fullscreenControl: true
   });
 }
 
 function actualizarMarcador(lat, lng) {
   if (!mapa) return;
   var pos = {lat: lat, lng: lng};
+
+  // Marcador del chofer
   if (!marcadorChofer) {
     marcadorChofer = new google.maps.Marker({
-      position: pos, map: mapa,
+      position: pos,
+      map: mapa,
       title: 'Chofer',
+      zIndex: 999,
       icon: {
-        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><circle cx="18" cy="18" r="16" fill="#2d5f4f" stroke="white" stroke-width="3"/><text x="18" y="24" font-size="16" text-anchor="middle" fill="white">&#128666;</text></svg>'),
-        scaledSize: new google.maps.Size(36, 36)
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42">' +
+          '<circle cx="21" cy="21" r="19" fill="#2d5f4f" stroke="white" stroke-width="3"/>' +
+          '<text x="21" y="27" font-size="18" text-anchor="middle" fill="white">&#128666;</text>' +
+          '</svg>'
+        ),
+        scaledSize: new google.maps.Size(42, 42),
+        anchor: new google.maps.Point(21, 21)
       }
     });
   } else {
@@ -170,25 +646,163 @@ function actualizarMarcador(lat, lng) {
   mapa.panTo(pos);
 }
 
+function agregarMarcadoresEntrega() {
+  // Limpiar marcadores anteriores
+  marcadoresEntrega.forEach(function(m){ m.setMap(null); });
+  marcadoresEntrega = [];
+  if (!mapa || clientes.length === 0) return;
+
+  var colores = {entregado:'#27ae60', fallido:'#d94545', parcial:'#e67e22', pendiente:'#aaaaaa'};
+  var emojis  = {entregado:'✓', fallido:'✗', parcial:'~', pendiente:'·'};
+
+  clientes.forEach(function(c, i) {
+    var entrega = entregas.filter(function(d){return d.clientId===c.id;})[0];
+    var estado  = entrega ? entrega.status : 'pendiente';
+    var color   = colores[estado] || '#aaa';
+    var letra   = emojis[estado] || (i+1);
+
+    // Usamos geocoder solo si hay coordenadas; si no, skip
+    // Los marcadores se agregan solo si el cliente tiene lat/lng
+    // (por ahora mostramos con geocoder al primer GPS disponible)
+    if (c.lat && c.lng) {
+      var m = new google.maps.Marker({
+        position: {lat: c.lat, lng: c.lng},
+        map: mapa,
+        title: c.name,
+        label: { text: String(i+1), color: 'white', fontSize: '11px', fontWeight: 'bold' },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 14,
+          fillColor: color,
+          fillOpacity: 1,
+          strokeColor: 'white',
+          strokeWeight: 2
+        }
+      });
+      marcadoresEntrega.push(m);
+    }
+  });
+}
+
+// ===== NOTIFICACIONES =====
+var sonidoActivo = true;
+var entregasAnteriores = {};
+var primeraLectura = true;
+var audioCtx = null;
+
+function toggleSonido() {
+  sonidoActivo = !sonidoActivo;
+  var btn = document.getElementById('notif-bell');
+  btn.textContent = sonidoActivo ? '\uD83D\uDD14 Sonido' : '\uD83D\uDD15 Silencio';
+  btn.style.opacity = sonidoActivo ? '1' : '0.5';
+}
+
+function reproducirSonido(tipo) {
+  if (!sonidoActivo) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc  = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    if (tipo === 'entregado') {
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.1);
+    } else if (tipo === 'fallido') {
+      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(330, audioCtx.currentTime + 0.15);
+    } else {
+      osc.frequency.setValueAtTime(660, audioCtx.currentTime);
+    }
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+function mostrarNotif(icono, titulo, sub, tipo) {
+  var contenedor = document.getElementById('notif-toast');
+  var item = document.createElement('div');
+  item.className = 'notif-item' + (tipo ? ' ' + tipo : '');
+  item.innerHTML =
+    '<div class="notif-icon">' + icono + '</div>' +
+    '<div class="notif-body">' +
+      '<div class="notif-title">' + titulo + '</div>' +
+      '<div class="notif-sub">'  + sub   + '</div>' +
+    '</div>' +
+    '<button class="notif-close" onclick="this.parentElement.remove()">&#10005;</button>';
+  contenedor.appendChild(item);
+  // Auto-cerrar en 6 segundos
+  setTimeout(function() {
+    if (item.parentElement) {
+      item.style.animation = 'slideOut 0.3s ease forwards';
+      setTimeout(function() { if (item.parentElement) item.remove(); }, 300);
+    }
+  }, 6000);
+  // Notificacion del navegador si la pestaña no esta visible
+  if (document.hidden && Notification.permission === 'granted') {
+    new Notification('Caveli - ' + titulo, { body: sub, icon: '' });
+  }
+}
+
+function detectarCambios(nuevasEntregas) {
+  if (primeraLectura) {
+    // Primera carga — registrar estado sin notificar
+    nuevasEntregas.forEach(function(d) { entregasAnteriores[d.clientId] = d.status; });
+    primeraLectura = false;
+    return;
+  }
+  var iconos  = {entregado:'&#10003;&#65039;', fallido:'&#10060;', parcial:'&#9888;&#65039;'};
+  var labels  = {entregado:'Entregado', fallido:'No entregado', parcial:'Entrega parcial'};
+  nuevasEntregas.forEach(function(d) {
+    var anterior = entregasAnteriores[d.clientId];
+    if (anterior !== d.status) {
+      var cliente = clientes.filter(function(c){return c.id===d.clientId;})[0];
+      var nombre  = cliente ? cliente.name : 'Cliente';
+      var icono   = iconos[d.status]  || '&#128230;';
+      var label   = labels[d.status]  || d.status;
+      mostrarNotif(icono, nombre + ' — ' + label, d.timestamp || '', d.status);
+      reproducirSonido(d.status);
+      entregasAnteriores[d.clientId] = d.status;
+    }
+  });
+}
+
+// Pedir permiso para notificaciones del navegador
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
 // ===== ESCUCHAR FIREBASE =====
 function escucharJornada() {
-  db.collection('jornadas').doc(jornadaId).onSnapshot(function(doc) {
+  if (jornadaListener) { jornadaListener(); jornadaListener = null; }
+  jornadaListener = db.collection('jornadas').doc(jornadaId).onSnapshot(function(doc) {
     if (!doc.exists) {
       clientes = []; entregas = [];
-      renderEstado();
+      primeraLectura = true;
+      entregasAnteriores = {};
+      renderEstado(); renderEntregas();
       document.getElementById('live-badge').textContent = '&#9679; SIN DATOS';
       document.getElementById('live-badge').className = 'live-badge offline';
       return;
     }
     var data    = doc.data();
     clientes    = data.clientes   || [];
-    entregas    = data.entregas   || [];
+    var nuevasEntregas = data.entregas || [];
+    detectarCambios(nuevasEntregas);
+    entregas    = nuevasEntregas;
     var ultima  = data.ultimaActualizacion ? new Date(data.ultimaActualizacion).toLocaleTimeString('es-CL') : '-';
     document.getElementById('ultima-datos').textContent = 'Ultima actualizacion: ' + ultima;
     document.getElementById('live-badge').innerHTML = '&#9679; EN VIVO';
     document.getElementById('live-badge').className = 'live-badge';
+    if (data.chofer) {
+      document.getElementById('chofer-nombre').textContent = data.chofer;
+      document.getElementById('chofer-banner').style.display = 'block';
+    }
     renderEstado();
     renderEntregas();
+    actualizarBotonesJornada();
   }, function(err) {
     console.error('Firestore error:', err);
     document.getElementById('live-badge').textContent = '&#9679; ERROR';
@@ -197,20 +811,45 @@ function escucharJornada() {
 }
 
 function escucharGPS() {
-  db.collection('gps').doc(jornadaId).onSnapshot(function(doc) {
+  if (gpsListener) { gpsListener(); gpsListener = null; }
+  gpsListener = db.collection('gps').doc(jornadaId).onSnapshot(function(doc) {
     if (!doc.exists) return;
     var data = doc.data();
     var ts   = data.timestamp ? new Date(data.timestamp).toLocaleTimeString('es-CL') : '-';
+
+    // Actualizar info del chofer
     document.getElementById('ultima-gps').textContent = 'Ultima actualizacion GPS: ' + ts;
     document.getElementById('gps-coords').textContent = 'Lat: ' + data.lat.toFixed(5) + '  Lng: ' + data.lng.toFixed(5);
     document.getElementById('chofer-banner').style.display = 'block';
     document.getElementById('chofer-sub').textContent = 'GPS actualizado: ' + ts;
+    if (data.chofer) document.getElementById('chofer-nombre').textContent = data.chofer;
 
-    if (document.getElementById('map').textContent === 'Cargando mapa...') {
-      document.getElementById('map').innerHTML = '<div style="padding:20px;color:#999">Cargando Google Maps...<br><small>Agrega tu API Key para ver el mapa</small></div>';
+    // Reconstruir rastro completo desde Firestore (sobrevive al refresh)
+    var puntosFirestore = data.rastro || [];
+    if (puntosFirestore.length > 0) {
+      rastro = puntosFirestore.map(function(p) { return {lat: p.lat, lng: p.lng}; });
+      dibujarRastro();
     }
+
+    // Mover marcador a posicion actual
     actualizarMarcador(data.lat, data.lng);
   });
+}
+
+function dibujarRastro() {
+  if (!mapa || rastro.length === 0) return;
+  if (polyline) polyline.setMap(null);
+  polyline = new google.maps.Polyline({
+    path: rastro,
+    geodesic: true,
+    strokeColor: '#2d5f4f',
+    strokeOpacity: 0.75,
+    strokeWeight: 4,
+    map: mapa
+  });
+  var ri = document.getElementById('rastro-info');
+  ri.style.display = 'block';
+  ri.textContent = 'Recorrido del dia: ' + rastro.length + ' puntos GPS registrados';
 }
 
 // ===== RENDER STATS =====
@@ -241,7 +880,7 @@ function setFiltro(f, el) {
 
 function renderEntregas() {
   var el = document.getElementById('entregas-list');
-  if (clientes.length === 0) { el.innerHTML = '<div class="empty">Esperando datos del chofer...</div>'; return; }
+  if (clientes.length === 0) { el.innerHTML = '<div class="empty">Carga y publica clientes para comenzar</div>'; return; }
 
   var getEntrega = function(id) { return entregas.filter(function(d){return d.clientId===id;})[0]; };
   var list = clientes.filter(function(c) {
@@ -253,7 +892,7 @@ function renderEntregas() {
   var dotClass = {entregado:'dot-entregado', parcial:'dot-parcial', fallido:'dot-fallido', pendiente:'dot-pendiente'};
   var label    = {entregado:'&#10003; Entregado', parcial:'&#9888; Parcial', fallido:'&#10007; Fallido', pendiente:'&#9201; Pendiente'};
 
-  el.innerHTML = list.map(function(c, i) {
+  el.innerHTML = list.map(function(c) {
     var d  = getEntrega(c.id);
     var s  = d ? d.status : 'pendiente';
     return '<div class="entrega-item">' +
@@ -262,26 +901,434 @@ function renderEntregas() {
         '<div class="entrega-name">' + c.name + '</div>' +
         '<div class="entrega-addr">' + c.address + '</div>' +
         (d && d.notes ? '<div style="font-size:11px;color:#0066cc;margin-top:2px">' + d.notes + '</div>' : '') +
+        (d && d.foto  ? '<img src="' + d.foto   + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;margin-top:4px;cursor:pointer" onclick="verFoto(\'' + (clientes.indexOf(c)+1) + '\',this.src,\'foto\')">' : '') +
+        (d && d.firma ? '<img src="' + d.firma  + '" style="width:60px;height:30px;object-fit:contain;border-radius:4px;margin-top:4px;background:#f9f9f9;border:1px solid #eee;cursor:pointer" title="Ver firma" onclick="verFoto(\'' + (clientes.indexOf(c)+1) + '\',this.src,\'firma\')">' : '') +
       '</div>' +
       (c.total ? '<div class="entrega-total">$' + Number(c.total).toLocaleString('es-CL') + '</div>' : '') +
       '<div style="text-align:right">' +
         '<span class="' + (dotClass[s]||'dot-pendiente') + ' status-dot" style="display:inline-block;margin-bottom:4px"></span><br>' +
         '<span style="font-size:10px;color:#888">' + (label[s]||s) + '</span>' +
         (d ? '<br><span class="entrega-hora">' + d.timestamp + '</span>' : '') +
+        '<br><div style="display:flex;gap:4px;justify-content:flex-end;margin-top:5px">' +
+        '<button onclick="editarCliente(\'' + c.id + '\')" style="padding:3px 8px;font-size:10px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;cursor:pointer;color:#555">&#9998; Editar</button>' +
+        '<button onclick="confirmarEliminar(\'' + c.id + '\',\'' + c.name.replace(/'/g,"\\'") + '\')" style="padding:3px 8px;font-size:10px;background:#fff0f0;border:1px solid #f5c6c6;border-radius:5px;cursor:pointer;color:#d94545">&#10007; Borrar</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
   }).join('');
 }
 
-// ===== INICIO =====
-escucharJornada();
-escucharGPS();
+// ===== LIGHTBOX FOTO =====
+function verFoto(num, src, tipo) {
+  var lb = document.getElementById('lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'lightbox';
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;flex-direction:column;gap:12px';
+    lb.onclick = function() { lb.remove(); };
+    document.body.appendChild(lb);
+  }
+  var label = tipo === 'firma' ? 'Firma del cliente' : 'Foto de evidencia';
+  lb.innerHTML =
+    '<div style="color:white;font-size:13px;opacity:0.7">Entrega #' + num + ' &mdash; ' + label + ' &mdash; clic para cerrar</div>' +
+    '<img src="' + src + '" style="max-width:90vw;max-height:80vh;border-radius:10px;box-shadow:0 4px 30px rgba(0,0,0,0.5);background:white">';
+}
 
-// Google Maps se carga si hay API key
-// Si quieres el mapa, reemplaza TU_API_KEY abajo y descomenta:
-// var script = document.createElement('script');
-// script.src = 'https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&callback=initMap';
-// document.head.appendChild(script);
+// ===== REPUBLICAR / NUEVA JORNADA =====
+function confirmarPublicar() {
+  if (clientes.length > 0) {
+    // Ya hay clientes publicados — pedir confirmacion
+    abrirConfirm(
+      '&#9888;',
+      'Reemplazar clientes',
+      'Ya hay ' + clientes.length + ' clientes publicados para hoy. El chofer perdera la lista actual y recibira la nueva.',
+      publicarClientes
+    );
+  } else {
+    publicarClientes();
+  }
+}
+
+function confirmarNuevaJornada() {
+  abrirConfirm(
+    '&#128465;',
+    'Nueva jornada',
+    'Se borraran todos los clientes y entregas del dia ' + jornadaId + '. Esta accion no se puede deshacer.',
+    ejecutarNuevaJornada
+  );
+}
+
+function ejecutarNuevaJornada() {
+  cerrarConfirm();
+  db.collection('jornadas').doc(jornadaId).delete().then(function() {
+    db.collection('gps').doc(jornadaId).delete();
+    clientes = []; entregas = [];
+    cancelarCarga();
+    document.getElementById('republicar-btns').style.display = 'none';
+    document.getElementById('reporte-btns').style.display = 'none';
+    renderEstado(); renderEntregas();
+    document.getElementById('live-badge').textContent = String.fromCharCode(9679) + ' SIN DATOS';
+    document.getElementById('live-badge').className = 'live-badge offline';
+    // Limpiar mapa
+    rastro = [];
+    if (polyline) { polyline.setMap(null); polyline = null; }
+    if (marcadorChofer) { marcadorChofer.setMap(null); marcadorChofer = null; }
+    document.getElementById('rastro-info').style.display = 'none';
+    document.getElementById('chofer-banner').style.display = 'none';
+  }).catch(function(err) {
+    alert('Error al borrar: ' + err.message);
+  });
+}
+
+function abrirConfirm(icono, titulo, msg, callback) {
+  document.getElementById('confirm-icon').innerHTML  = icono;
+  document.getElementById('confirm-title').textContent = titulo;
+  document.getElementById('confirm-msg').textContent   = msg;
+  document.getElementById('confirm-ok-btn').onclick = function() {
+    cerrarConfirm();
+    callback();
+  };
+  var ov = document.getElementById('confirm-overlay');
+  ov.style.display = 'flex';
+}
+
+function cerrarConfirm() {
+  document.getElementById('confirm-overlay').style.display = 'none';
+}
+
+document.getElementById('confirm-overlay').addEventListener('click', function(e) {
+  if (e.target === this) cerrarConfirm();
+});
+
+// Mostrar botones republicar cuando ya hay datos publicados
+function actualizarBotonesJornada() {
+  var tieneClientes = clientes.length > 0;
+  document.getElementById('republicar-btns').style.display = tieneClientes ? 'flex' : 'none';
+  document.getElementById('reporte-btns').style.display    = entregas.length > 0 ? 'block' : 'none';
+}
+
+// ===== REPORTE CSV DESDE DASHBOARD =====
+function descargarReporte() {
+  if (clientes.length === 0) return;
+  var fecha = jornadaId;
+  var comp  = entregas.filter(function(d){return d.status==='entregado';}).length;
+  var rows  = ['#,Cliente,Direccion,Telefono,Estado,Total,Hora,Notas'];
+  clientes.forEach(function(c, i) {
+    var d = entregas.filter(function(x){return x.clientId===c.id;})[0] || {};
+    rows.push(
+      (i+1) + ',' +
+      '"' + (c.name    || '') + '",' +
+      '"' + (c.address || '') + '",' +
+      '"' + (c.phone   || '') + '",' +
+      '"' + (d.status  || 'pendiente') + '",' +
+      '"' + (c.total   || 0) + '",' +
+      '"' + (d.timestamp || '-') + '",' +
+      '"' + (d.notes   || '') + '"'
+    );
+  });
+  var mok = entregas.filter(function(d){return d.status==='entregado';}).reduce(function(s,d){
+    var c=clientes.filter(function(x){return x.id===d.clientId;})[0]; return s+(c?c.total||0:0);
+  },0);
+  var resumen = '\n\nResumen,' + fecha + '\nEntregados,' + comp + '/' + clientes.length + '\n$ Cobrado,$' + mok.toLocaleString('es-CL');
+  var csv = 'Distribuidora Caveli - Reporte\nFecha: ' + fecha + '\n\n' + rows.join('\n') + resumen;
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'reporte-caveli-' + fecha + '.csv';
+  a.click();
+}
+
+// ===== SISTEMA PIN =====
+var PIN_KEY     = 'caveli_pin';
+var SESSION_KEY = 'caveli_session';
+var PIN_DEFAULT = '1234';
+var pinIngresado = '';
+var pinModocambio = false;
+var pinNuevoTemp  = '';
+
+function iniciarPin() {
+  var sessionOk = sessionStorage.getItem(SESSION_KEY) === 'ok';
+  if (sessionOk) {
+    // Ya autenticado en esta sesion del navegador
+    document.getElementById('pin-overlay').style.display = 'none';
+    iniciarApp();
+    return;
+  }
+  var pinGuardado = localStorage.getItem(PIN_KEY);
+  if (!pinGuardado) {
+    // Primera vez — establecer PIN por defecto
+    localStorage.setItem(PIN_KEY, PIN_DEFAULT);
+    document.getElementById('pin-sub').textContent = 'PIN inicial: 1234 (cambialo despues)';
+    document.getElementById('pin-cambiar-link').style.display = 'inline';
+  }
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+function pinTecla(n) {
+  if (pinIngresado.length >= 4) return;
+  pinIngresado += n;
+  actualizarDots(pinIngresado.length, false);
+  if (pinIngresado.length === 4) {
+    setTimeout(function() { verificarPin(); }, 120);
+  }
+}
+
+function pinBorrar() {
+  if (pinIngresado.length === 0) return;
+  pinIngresado = pinIngresado.slice(0, -1);
+  actualizarDots(pinIngresado.length, false);
+  document.getElementById('pin-error').textContent = '';
+}
+
+function pinLimpiar() {
+  pinIngresado = '';
+  actualizarDots(0, false);
+  document.getElementById('pin-error').textContent = '';
+}
+
+function actualizarDots(n, error) {
+  for (var i = 0; i < 4; i++) {
+    var dot = document.getElementById('pd' + i);
+    dot.className = 'pin-dot' + (i < n ? (error ? ' error' : ' filled') : '');
+  }
+}
+
+function verificarPin() {
+  var pinGuardado = localStorage.getItem(PIN_KEY) || PIN_DEFAULT;
+  if (pinModoambio) {
+    // Modo cambio: verificar PIN actual
+    if (pinIngresado === pinGuardado) {
+      pinNuevoTemp  = '';
+      pinModoambio  = false;
+      pinIngresado  = '';
+      actualizarDots(0, false);
+      document.getElementById('pin-sub').textContent = 'Ingresa el nuevo PIN de 4 digitos';
+      document.getElementById('pin-error').textContent = '';
+      pinModoNuevo = true;
+    } else {
+      pinError('PIN incorrecto');
+    }
+  } else if (pinModoNuevo) {
+    // Guardar nuevo PIN
+    if (pinNuevoTemp === '') {
+      pinNuevoTemp = pinIngresado;
+      pinIngresado = '';
+      actualizarDots(0, false);
+      document.getElementById('pin-sub').textContent = 'Repite el nuevo PIN para confirmar';
+    } else {
+      if (pinIngresado === pinNuevoTemp) {
+        localStorage.setItem(PIN_KEY, pinIngresado);
+        pinModoNuevo = false; pinNuevoTemp = '';
+        pinIngresado = '';
+        document.getElementById('pin-sub').textContent = 'PIN actualizado. Ingresa tu nuevo PIN';
+        document.getElementById('pin-error').textContent = '';
+        actualizarDots(0, false);
+      } else {
+        pinNuevoTemp = ''; pinIngresado = '';
+        actualizarDots(0, true);
+        document.getElementById('pin-error').textContent = 'Los PIN no coinciden. Intenta de nuevo';
+        setTimeout(function() { actualizarDots(0, false); document.getElementById('pin-sub').textContent = 'Ingresa el nuevo PIN de 4 digitos'; }, 1200);
+      }
+    }
+  } else {
+    // Verificacion normal
+    if (pinIngresado === pinGuardado) {
+      sessionStorage.setItem(SESSION_KEY, 'ok');
+      document.getElementById('pin-overlay').style.display = 'none';
+      iniciarApp();
+    } else {
+      pinError('PIN incorrecto');
+    }
+  }
+}
+
+var pinModoambio = false;
+var pinModoNuevo = false;
+
+function pinError(msg) {
+  actualizarDots(4, true);
+  document.getElementById('pin-error').textContent = msg;
+  setTimeout(function() {
+    pinIngresado = '';
+    actualizarDots(0, false);
+    document.getElementById('pin-error').textContent = '';
+  }, 1000);
+}
+
+function mostrarCambiarPin() {
+  pinModoambio  = true;
+  pinIngresado  = '';
+  actualizarDots(0, false);
+  document.getElementById('pin-sub').textContent = 'Ingresa el PIN actual para cambiarlo';
+  document.getElementById('pin-error').textContent = '';
+}
+
+function pedirCambiarPin() {
+  // Desde el header (ya autenticado) — ir directo a ingresar nuevo PIN
+  pinModoNuevo  = true;
+  pinNuevoTemp  = '';
+  pinIngresado  = '';
+  actualizarDots(0, false);
+  document.getElementById('pin-sub').textContent = 'Ingresa el nuevo PIN de 4 digitos';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+// Teclado fisico tambien funciona
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('pin-overlay').style.display !== 'none') {
+    if (e.key >= '0' && e.key <= '9') pinTecla(e.key);
+    else if (e.key === 'Backspace') pinBorrar();
+    else if (e.key === 'Escape') { pinLimpiar(); }
+  }
+});
+
+function iniciarApp() {
+  // Inicializar tab activo
+  renderTabs();
+  // Publicar el registro del día con los choferes ya guardados, para que
+  // CAV PRO y la app del chofer puedan verlos sin tener que reeditarlos.
+  publicarRegistro();
+  if (choferes[0] && choferes[0].trim()) {
+    jornadaId = jornadaDeChofer(0) || jornadaId;
+  }
+  escucharJornada();
+  escucharGPS();
+}
+
+// ===== ELIMINAR CLIENTE =====
+function confirmarEliminar(id, nombre) {
+  abrirConfirm('&#10007;', 'Eliminar parada', '¿Eliminar a "' + nombre + '" de la ruta de hoy? Esta acción no se puede deshacer.',
+    function() { eliminarCliente(id); }
+  );
+}
+
+function eliminarCliente(id) {
+  var nuevaLista = clientes.filter(function(c){ return c.id !== id; });
+  db.collection('jornadas').doc(jornadaId).update({ clientes: nuevaLista })
+    .then(function() { setAlert('&#10003; Cliente eliminado de la ruta', 'success'); })
+    .catch(function(err) { setAlert('Error al eliminar: ' + err.message, 'error'); });
+}
+
+// ===== EDITAR CLIENTE =====
+var editandoId = null;
+
+function editarCliente(id) {
+  var c = clientes.filter(function(x){ return x.id === id; })[0];
+  if (!c) return;
+  editandoId = id;
+  document.getElementById('edit-name').value    = c.name    || '';
+  document.getElementById('edit-address').value = c.address || '';
+  document.getElementById('edit-phone').value   = c.phone   || '';
+  document.getElementById('edit-total').value   = c.total   || '';
+  document.getElementById('edit-notes').value   = c.notes   || '';
+  document.getElementById('edit-alert').innerHTML = '';
+  document.getElementById('edit-geocod-status').textContent = c.lat ? '✓ Tiene coordenadas GPS' : 'Sin coordenadas — se geocodificará al guardar';
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function cerrarEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editandoId = null;
+}
+
+function guardarEdicion() {
+  var nombre  = document.getElementById('edit-name').value.trim();
+  var dir     = document.getElementById('edit-address').value.trim();
+  var tel     = document.getElementById('edit-phone').value.trim();
+  var total   = Number(document.getElementById('edit-total').value) || 0;
+  var notas   = document.getElementById('edit-notes').value.trim();
+  var alertEl = document.getElementById('edit-alert');
+
+  if (!nombre || !dir) {
+    alertEl.innerHTML = '<div style="color:#d94545;font-size:13px">Nombre y dirección son obligatorios</div>';
+    return;
+  }
+
+  var btn = document.getElementById('btn-guardar-edit');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  var idx = clientes.findIndex(function(x){ return x.id === editandoId; });
+  if (idx === -1) { cerrarEditModal(); return; }
+
+  var clienteActual = clientes[idx];
+  var direccionCambio = dir !== clienteActual.address;
+
+  function guardarEnFirestore(lat, lng) {
+    var actualizado = Object.assign({}, clienteActual, {
+      name: nombre, address: dir, phone: tel, total: total, notes: notas
+    });
+    if (lat !== undefined) { actualizado.lat = lat; actualizado.lng = lng; }
+
+    var nuevaLista = clientes.slice();
+    nuevaLista[idx] = actualizado;
+
+    db.collection('jornadas').doc(jornadaId).update({ clientes: nuevaLista })
+      .then(function() {
+        cerrarEditModal();
+        btn.disabled = false; btn.textContent = '✓ Guardar';
+      })
+      .catch(function(err) {
+        alertEl.innerHTML = '<div style="color:#d94545;font-size:13px">Error: ' + err.message + '</div>';
+        btn.disabled = false; btn.textContent = '✓ Guardar';
+      });
+  }
+
+  if (direccionCambio) {
+    document.getElementById('edit-geocod-status').textContent = 'Geocodificando nueva dirección...';
+    geocodificarDireccion(dir).then(function(coords) {
+      document.getElementById('edit-geocod-status').textContent = coords ? '✓ Coordenadas obtenidas' : 'Sin coordenadas GPS';
+      guardarEnFirestore(coords ? coords.lat : undefined, coords ? coords.lng : undefined);
+    });
+  } else {
+    guardarEnFirestore();
+  }
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) cerrarEditModal();
+});
+
+// ===== INICIO =====
+iniciarPin();
 </script>
+
+<!-- MODAL EDITAR CLIENTE -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px">
+  <div style="background:white;border-radius:12px;padding:24px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="font-size:16px;font-weight:700;color:#2d5f4f">&#9998; Editar parada</h3>
+      <button onclick="cerrarEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#999">&#10005;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Nombre cliente *</label>
+        <input id="edit-name" type="text" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Dirección *</label>
+        <input id="edit-address" type="text" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+        <div id="edit-geocod-status" style="font-size:11px;color:#888;margin-top:4px"></div>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Teléfono</label>
+        <input id="edit-phone" type="tel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Total ($)</label>
+        <input id="edit-total" type="number" min="0" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Notas</label>
+        <textarea id="edit-notes" rows="2" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:7px;font-size:14px;resize:vertical"></textarea>
+      </div>
+      <div id="edit-alert" style="margin-top:4px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+        <button onclick="cerrarEditModal()" style="padding:10px 20px;border:1px solid #ddd;background:white;border-radius:7px;cursor:pointer;font-size:14px">Cancelar</button>
+        <button onclick="guardarEdicion()" id="btn-guardar-edit" style="padding:10px 22px;background:#2d5f4f;color:white;border:none;border-radius:7px;cursor:pointer;font-size:14px;font-weight:700">&#10003; Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
