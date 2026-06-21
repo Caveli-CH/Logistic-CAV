@@ -939,6 +939,16 @@ function openModal(clientId) {
 }
 function closeModal() { document.getElementById('delivery-modal').classList.remove('show'); }
 
+function tipoProducto(p) {
+  if (p && p.es_pesable === true) return 'pesable';
+  if (p && p.es_pesable === false && p.tipo_venta === 'kilo') return 'kilo';
+  return 'unidad';
+}
+function fmtNum(n) {
+  if (n == null || n === '') return '';
+  var v = Math.round(Number(n) * 100) / 100;
+  return isNaN(v) ? '' : String(v);
+}
 function renderProductosPedido(c, d) {
   var box = document.getElementById('pedido-productos');
   var devBox = document.getElementById('devolucion-items');
@@ -952,31 +962,62 @@ function renderProductosPedido(c, d) {
   box.innerHTML =
     '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--primary)">&#128230; Productos del pedido</div>' +
     prods.map(function(p) {
+      var t = tipoProducto(p);
+      var detalle;
+      if (t === 'kilo') {
+        detalle = fmtNum(p.cantidad) + ' kg';
+      } else if (t === 'pesable') {
+        detalle = fmtNum(p.cantidad) + ' bultos &middot; ' + (p.peso_kg != null ? fmtNum(p.peso_kg) + ' kg' : 'sin pesar');
+      } else {
+        detalle = 'x' + fmtNum(p.cantidad);
+      }
       return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #eee">' +
-        '<span>' + p.nombre + '</span><span style="font-weight:600">x' + p.cantidad + '</span></div>';
+        '<span>' + p.nombre + '</span><span style="font-weight:600">' + detalle + '</span></div>';
     }).join('');
   var prev = {};
   ((d && d.devoluciones) || []).forEach(function(x, i) { prev[x.producto_id != null ? x.producto_id : i] = x; });
+  var inStyle = 'width:58px;padding:5px;border:1.5px solid var(--border);border-radius:6px';
   devBox.innerHTML = prods.map(function(p, i) {
     var key = p.producto_id != null ? p.producto_id : i;
     var dev = prev[key];
-    var checked = dev ? ' checked' : '';
-    var qty = dev ? dev.cantidad : p.cantidad;
+    var t = tipoProducto(p);
+    var checked  = dev ? ' checked' : '';
     var disabled = dev ? '' : ' disabled';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #eee">' +
-      '<input type="checkbox" class="dev-check" data-idx="' + i + '" onchange="onDevCheck(this)"' + checked + '>' +
-      '<span style="flex:1;font-size:13px">' + p.nombre + '</span>' +
-      '<input type="number" class="dev-qty" data-idx="' + i + '" value="' + qty + '" min="1" max="' + p.cantidad + '" step="1"' + disabled +
-        ' style="width:62px;padding:5px;border:1.5px solid var(--border);border-radius:6px">' +
-      '<span style="font-size:12px;color:#888">/ ' + p.cantidad + '</span>' +
+    var campos;
+    if (t === 'kilo') {
+      var qk = dev ? fmtNum(dev.cantidad) : fmtNum(p.cantidad);
+      campos =
+        '<input type="number" class="dev-qty" data-idx="' + i + '" value="' + qk + '" min="0" max="' + fmtNum(p.cantidad) + '" step="0.01"' + disabled + ' style="' + inStyle + '">' +
+        '<span style="font-size:12px;color:#888">kg / ' + fmtNum(p.cantidad) + '</span>';
+    } else if (t === 'pesable') {
+      var qb    = dev ? fmtNum(dev.cantidad) : fmtNum(p.cantidad);
+      var qkg   = dev ? fmtNum(dev.peso_kg)  : fmtNum(p.peso_kg);
+      var maxKg = p.peso_kg != null ? fmtNum(p.peso_kg) : '';
+      campos =
+        '<input type="number" class="dev-qty" data-idx="' + i + '" value="' + qb + '" min="0" max="' + fmtNum(p.cantidad) + '" step="1"' + disabled + ' style="' + inStyle + '">' +
+        '<span style="font-size:12px;color:#888">blt</span>' +
+        '<input type="number" class="dev-kg" data-idx="' + i + '" value="' + qkg + '" min="0" max="' + maxKg + '" step="0.01"' + disabled + ' style="' + inStyle + '">' +
+        '<span style="font-size:12px;color:#888">kg</span>';
+    } else {
+      var qu = dev ? fmtNum(dev.cantidad) : fmtNum(p.cantidad);
+      campos =
+        '<input type="number" class="dev-qty" data-idx="' + i + '" value="' + qu + '" min="0" max="' + fmtNum(p.cantidad) + '" step="1"' + disabled + ' style="' + inStyle + '">' +
+        '<span style="font-size:12px;color:#888">/ ' + fmtNum(p.cantidad) + '</span>';
+    }
+    return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #eee;flex-wrap:wrap">' +
+      '<input type="checkbox" class="dev-check" data-idx="' + i + '" data-tipo="' + t + '" onchange="onDevCheck(this)"' + checked + '>' +
+      '<span style="flex:1;min-width:90px;font-size:13px">' + p.nombre + '</span>' +
+      campos +
       '</div>';
   }).join('');
 }
 function onDevCheck(cb) {
-  var q = document.querySelector('.dev-qty[data-idx="' + cb.dataset.idx + '"]');
-  if (!q) return;
-  q.disabled = !cb.checked;
-  if (cb.checked && (!q.value || Number(q.value) <= 0)) q.value = q.max;
+  var inputs = document.querySelectorAll('.dev-qty[data-idx="' + cb.dataset.idx + '"], .dev-kg[data-idx="' + cb.dataset.idx + '"]');
+  inputs.forEach(function(q) {
+    q.disabled = !cb.checked;
+    // Al marcar, precargar con el máximo (lo despachado). Si no hay max (pesable sin pesar), dejar al usuario.
+    if (cb.checked && (!q.value || Number(q.value) <= 0) && q.max) q.value = q.max;
+  });
 }
 
 // ===== FIRMA DIGITAL =====
@@ -1081,13 +1122,49 @@ function saveDelivery() {
     document.querySelectorAll('.dev-check').forEach(function(cb) {
       if (!cb.checked) return;
       var idx2 = Number(cb.dataset.idx);
+      var p = prods[idx2];
+      if (!p) return;
+      var t = tipoProducto(p);
       var qInput = document.querySelector('.dev-qty[data-idx="' + idx2 + '"]');
       var qty = parseFloat(qInput && qInput.value) || 0;
-      var p = prods[idx2];
-      if (!p || qty <= 0) return;
-      // Nunca devolver más de lo pedido.
-      qty = Math.min(qty, Number(p.cantidad) || qty);
-      devoluciones.push({ producto_id: p.producto_id, nombre: p.nombre, cantidad: qty, es_pesable: !!p.es_pesable });
+      if (t === 'pesable') {
+        var kgInput = document.querySelector('.dev-kg[data-idx="' + idx2 + '"]');
+        var kg = parseFloat(kgInput && kgInput.value) || 0;
+        // Nunca devolver más de lo despachado.
+        var bultos = Math.min(qty, Number(p.cantidad) || qty);
+        if (p.peso_kg != null) kg = Math.min(kg, Number(p.peso_kg) || kg);
+        if (bultos <= 0 && kg <= 0) return;
+        devoluciones.push({
+          producto_id: p.producto_id,
+          nombre:      p.nombre,
+          es_pesable:  true,
+          tipo_venta:  p.tipo_venta || 'unidad',
+          cantidad:    bultos,
+          peso_kg:     kg
+        });
+      } else if (t === 'kilo') {
+        qty = Math.min(qty, Number(p.cantidad) || qty);
+        if (qty <= 0) return;
+        devoluciones.push({
+          producto_id: p.producto_id,
+          nombre:      p.nombre,
+          es_pesable:  false,
+          tipo_venta:  'kilo',
+          cantidad:    qty,
+          peso_kg:     null
+        });
+      } else {
+        qty = Math.min(qty, Number(p.cantidad) || qty);
+        if (qty <= 0) return;
+        devoluciones.push({
+          producto_id: p.producto_id,
+          nombre:      p.nombre,
+          es_pesable:  false,
+          tipo_venta:  'unidad',
+          cantidad:    qty,
+          peso_kg:     null
+        });
+      }
     });
   }
   var rec = {
