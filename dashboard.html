@@ -826,6 +826,17 @@ function escucharJornada() {
 
 function escucharGPS() {
   if (gpsListener) { gpsListener(); gpsListener = null; }
+
+  // Limpiar la frescura del chofer anterior: si el nuevo chofer aun no tiene
+  // datos, no debemos seguir mostrando la antiguedad del chofer previo.
+  ultimoGpsTs = null;
+  var ugReset = document.getElementById('ultima-gps');
+  ugReset.textContent = 'Ultima actualizacion GPS: -';
+  ugReset.style.color = '';
+  var subReset = document.getElementById('chofer-sub');
+  subReset.textContent = '-';
+  subReset.style.color = '';
+
   gpsListener = db.collection('gps').doc(jornadaId).onSnapshot(function(doc) {
     if (!doc.exists) return;
     var data = doc.data();
@@ -854,19 +865,27 @@ function escucharGPS() {
 
 function revisarFrescuraGps() {
   if (!ultimoGpsTs) return;
+  // El timestamp viene del reloj del telefono del chofer; un reloj adelantado
+  // produciria una edad negativa que se veria "activo" y enmascararia una
+  // senal vieja. La acotamos a 0 para no enganar.
   var age  = Date.now() - new Date(ultimoGpsTs).getTime();
+  if (age < 0) age = 0;
   var info = GpsEstado.clasificarEstadoGps(age);
   colorMarcadorChofer(info.color);
 
-  var el = document.getElementById('ultima-gps');
+  var el  = document.getElementById('ultima-gps');
+  var sub = document.getElementById('chofer-sub');
   var base = 'Ultima actualizacion GPS: ' + new Date(ultimoGpsTs).toLocaleTimeString('es-CL');
   if (info.nivel === 'activo') {
     el.textContent = base;
     el.style.color = '';
+    sub.style.color = '';
   } else {
     var prefijo = (info.nivel === 'sin-senal') ? '⚠ SIN SEÑAL — ' : '';
     el.textContent = base + ' — ' + prefijo + GpsEstado.formatearAntiguedad(age);
     el.style.color = info.color;
+    sub.textContent = prefijo + 'GPS ' + GpsEstado.formatearAntiguedad(age);
+    sub.style.color = info.color;
   }
 }
 
