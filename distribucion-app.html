@@ -557,6 +557,24 @@ function syncFirebase() {
 // GPS: enviar posicion del chofer a Firebase
 var gpsInterval = null;
 var gpsErrores   = 0;
+var wakeLock = null;
+
+function pedirWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(function(wl) {
+        wakeLock = wl;
+        wakeLock.addEventListener('release', function() { wakeLock = null; });
+      }).catch(function() {});
+    }
+  } catch (e) {}
+}
+
+function liberarWakeLock() {
+  try {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  } catch (e) {}
+}
 
 function setGpsStatus(estado, texto, precision) {
   var bar = document.getElementById('gps-status-bar');
@@ -624,6 +642,7 @@ function startGPS() {
     return;
   }
   if (gpsInterval) return;
+  pedirWakeLock();
   setGpsStatus('gps-inactivo', 'Solicitando permiso GPS...', '');
   // Primera lectura inmediata para pedir permiso enseguida
   enviarGPS();
@@ -633,6 +652,7 @@ function startGPS() {
 
 function stopGPS() {
   if (gpsInterval) { clearInterval(gpsInterval); gpsInterval = null; }
+  liberarWakeLock();
   setGpsStatus('gps-inactivo', 'GPS detenido', '');
   document.getElementById('gps-status-bar').style.display = 'none';
 }
@@ -1548,6 +1568,11 @@ updateAll();
 if(startTime&&!timerInterval) startTimer();
 if(startTime&&!gpsInterval)   startGPS();
 setConexion(navigator.onLine);
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && gpsInterval) {
+    pedirWakeLock();
+  }
+});
 
 </script>
 <script>
