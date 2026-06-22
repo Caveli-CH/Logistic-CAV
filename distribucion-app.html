@@ -555,8 +555,27 @@ function syncFirebase() {
 }
 
 // GPS: enviar posicion del chofer a Firebase
-var gpsInterval = null;
+var gpsWatchId   = null;
+var gpsLastWrite = 0;
 var gpsErrores   = 0;
+var wakeLock = null;
+
+function pedirWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(function(wl) {
+        wakeLock = wl;
+        wakeLock.addEventListener('release', function() { wakeLock = null; });
+      }).catch(function() {});
+    }
+  } catch (e) {}
+}
+
+function liberarWakeLock() {
+  try {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  } catch (e) {}
+}
 
 function setGpsStatus(estado, texto, precision) {
   var bar = document.getElementById('gps-status-bar');
@@ -569,52 +588,46 @@ function setGpsStatus(estado, texto, precision) {
   pre.textContent = precision || '';
 }
 
-function enviarGPS() {
-  if (!navigator.geolocation) {
-    setGpsStatus('gps-error', 'GPS no disponible en este dispositivo', '');
-    return;
+function escribirGps(pos) {
+  if (!db) return;
+  try {
+    var punto = { lat: pos.coords.latitude, lng: pos.coords.longitude, ts: new Date().toISOString() };
+    db.collection('gps').doc(jornadaId).set({
+      lat: punto.lat, lng: punto.lng,
+      precision: pos.coords.accuracy,
+      timestamp: punto.ts,
+      chofer: nombreChofer || 'Chofer',
+      rastro: firebase.firestore.FieldValue.arrayUnion(punto)
+    }, { merge: true });
+  } catch (e) {}
+}
+
+function onGpsPos(pos) {
+  gpsErrores = 0;
+  var precM = Math.round(pos.coords.accuracy);
+  setGpsStatus('gps-activo', 'GPS activo — enviando al jefe', 'Precision: ' + precM + 'm');
+
+  // Throttle: escribir como máximo cada 15s para no inflar el rastro
+  var ahora = Date.now();
+  if (ahora - gpsLastWrite < 15000) return;
+  gpsLastWrite = ahora;
+  escribirGps(pos);
+}
+
+function onGpsErr(err) {
+  gpsErrores++;
+  if (err.code === 1) {
+    setGpsStatus('gps-error', 'Permiso GPS denegado — ve a Configuracion > Permisos', 'Activa ubicacion para esta app');
+    showToast('GPS bloqueado: activa los permisos de ubicacion', 'error');
+    stopGPS(); // No reintentar si fue denegado
+  } else if (err.code === 2) {
+    setGpsStatus('gps-error', 'Señal GPS debil (' + gpsErrores + ' intentos)', 'Buscando señal...');
+  } else if (err.code === 3) {
+    setGpsStatus('gps-error', 'GPS lento — reintentando...', 'Timeout');
   }
-  navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      gpsErrores = 0;
-      var precM = Math.round(pos.coords.accuracy);
-      setGpsStatus('gps-activo',
-        'GPS activo — enviando al jefe',
-        'Precision: ' + precM + 'm'
-      );
-      if (!db) return;
-      try {
-        var punto = { lat: pos.coords.latitude, lng: pos.coords.longitude, ts: new Date().toISOString() };
-        db.collection('gps').doc(jornadaId).set({
-          lat: punto.lat, lng: punto.lng,
-          precision: pos.coords.accuracy,
-          timestamp: punto.ts,
-          chofer: nombreChofer || 'Chofer',
-          rastro: firebase.firestore.FieldValue.arrayUnion(punto)
-        }, { merge: true });
-      } catch(e) {}
-    },
-    function(err) {
-      gpsErrores++;
-      var msg = '';
-      if (err.code === 1) {
-        msg = 'Permiso GPS denegado — ve a Configuracion > Permisos';
-        setGpsStatus('gps-error', msg, 'Activa ubicacion para esta app');
-        showToast('GPS bloqueado: activa los permisos de ubicacion', 'error');
-        stopGPS(); // No reintentar si fue denegado
-      } else if (err.code === 2) {
-        msg = 'Señal GPS debil (' + gpsErrores + ' intentos)';
-        setGpsStatus('gps-error', msg, 'Buscando señal...');
-      } else if (err.code === 3) {
-        msg = 'GPS lento — reintentando...';
-        setGpsStatus('gps-error', msg, 'Timeout');
-      }
-      if (gpsErrores >= 3) {
-        showToast('GPS con problemas (' + gpsErrores + ' errores seguidos)', 'error');
-      }
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-  );
+  if (gpsErrores >= 3) {
+    showToast('GPS con problemas (' + gpsErrores + ' errores seguidos)', 'error');
+  }
 }
 
 function startGPS() {
@@ -623,16 +636,19 @@ function startGPS() {
     showToast('Este dispositivo no soporta GPS', 'error');
     return;
   }
-  if (gpsInterval) return;
+  if (gpsWatchId !== null) return;
+  pedirWakeLock();
   setGpsStatus('gps-inactivo', 'Solicitando permiso GPS...', '');
-  // Primera lectura inmediata para pedir permiso enseguida
-  enviarGPS();
-  // Luego cada 15 segundos
-  gpsInterval = setInterval(enviarGPS, 15000);
+  gpsLastWrite = 0;
+  gpsWatchId = navigator.geolocation.watchPosition(
+    onGpsPos, onGpsErr,
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
 }
 
 function stopGPS() {
-  if (gpsInterval) { clearInterval(gpsInterval); gpsInterval = null; }
+  if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  liberarWakeLock();
   setGpsStatus('gps-inactivo', 'GPS detenido', '');
   document.getElementById('gps-status-bar').style.display = 'none';
 }
@@ -1546,8 +1562,13 @@ iniciarIdentificacion();
 initFirebase();
 updateAll();
 if(startTime&&!timerInterval) startTimer();
-if(startTime&&!gpsInterval)   startGPS();
+if(startTime&&gpsWatchId===null) startGPS();
 setConexion(navigator.onLine);
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && gpsWatchId !== null) {
+    pedirWakeLock();
+  }
+});
 
 </script>
 <script>
