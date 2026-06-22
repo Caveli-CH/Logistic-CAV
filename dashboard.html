@@ -277,6 +277,7 @@ header h1{font-size:20px;font-weight:700;}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- Google Maps -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD2EObXtTMWhGm3J9EtmuNIdS1oH9pqKOs&callback=initMap" async defer></script>
+<script src="gps-estado.js"></script>
 
 <script>
 // ===== CONFIG =====
@@ -297,6 +298,7 @@ var clientes = [], entregas = [], filtro = 'todos';
 var clientesPendientes = [];
 var marcadorChofer = null, mapa = null;
 var jornadaListener = null, gpsListener = null;
+var ultimoGpsTs = null, frescuraTimer = null;
 
 var fechaBase = new Date().toISOString().split('T')[0];
 var jornadaId = fechaBase; // se recalcula al seleccionar chofer
@@ -618,11 +620,19 @@ function initMap() {
   });
 }
 
+function svgChofer(fill) {
+  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42">' +
+    '<circle cx="21" cy="21" r="19" fill="' + fill + '" stroke="white" stroke-width="3"/>' +
+    '<text x="21" y="27" font-size="18" text-anchor="middle" fill="white">&#128666;</text>' +
+    '</svg>'
+  );
+}
+
 function actualizarMarcador(lat, lng) {
   if (!mapa) return;
   var pos = {lat: lat, lng: lng};
 
-  // Marcador del chofer
   if (!marcadorChofer) {
     marcadorChofer = new google.maps.Marker({
       position: pos,
@@ -630,12 +640,7 @@ function actualizarMarcador(lat, lng) {
       title: 'Chofer',
       zIndex: 999,
       icon: {
-        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
-          '<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42">' +
-          '<circle cx="21" cy="21" r="19" fill="#2d5f4f" stroke="white" stroke-width="3"/>' +
-          '<text x="21" y="27" font-size="18" text-anchor="middle" fill="white">&#128666;</text>' +
-          '</svg>'
-        ),
+        url: svgChofer('#2d5f4f'),
         scaledSize: new google.maps.Size(42, 42),
         anchor: new google.maps.Point(21, 21)
       }
@@ -644,6 +649,15 @@ function actualizarMarcador(lat, lng) {
     marcadorChofer.setPosition(pos);
   }
   mapa.panTo(pos);
+}
+
+function colorMarcadorChofer(color) {
+  if (!marcadorChofer) return;
+  marcadorChofer.setIcon({
+    url: svgChofer(color),
+    scaledSize: new google.maps.Size(42, 42),
+    anchor: new google.maps.Point(21, 21)
+  });
 }
 
 function agregarMarcadoresEntrega() {
@@ -817,23 +831,43 @@ function escucharGPS() {
     var data = doc.data();
     var ts   = data.timestamp ? new Date(data.timestamp).toLocaleTimeString('es-CL') : '-';
 
-    // Actualizar info del chofer
+    ultimoGpsTs = data.timestamp || null;
+
     document.getElementById('ultima-gps').textContent = 'Ultima actualizacion GPS: ' + ts;
     document.getElementById('gps-coords').textContent = 'Lat: ' + data.lat.toFixed(5) + '  Lng: ' + data.lng.toFixed(5);
     document.getElementById('chofer-banner').style.display = 'block';
     document.getElementById('chofer-sub').textContent = 'GPS actualizado: ' + ts;
     if (data.chofer) document.getElementById('chofer-nombre').textContent = data.chofer;
 
-    // Reconstruir rastro completo desde Firestore (sobrevive al refresh)
     var puntosFirestore = data.rastro || [];
     if (puntosFirestore.length > 0) {
       rastro = puntosFirestore.map(function(p) { return {lat: p.lat, lng: p.lng}; });
       dibujarRastro();
     }
 
-    // Mover marcador a posicion actual
     actualizarMarcador(data.lat, data.lng);
+    revisarFrescuraGps();
   });
+
+  if (!frescuraTimer) frescuraTimer = setInterval(revisarFrescuraGps, 15000);
+}
+
+function revisarFrescuraGps() {
+  if (!ultimoGpsTs) return;
+  var age  = Date.now() - new Date(ultimoGpsTs).getTime();
+  var info = GpsEstado.clasificarEstadoGps(age);
+  colorMarcadorChofer(info.color);
+
+  var el = document.getElementById('ultima-gps');
+  var base = 'Ultima actualizacion GPS: ' + new Date(ultimoGpsTs).toLocaleTimeString('es-CL');
+  if (info.nivel === 'activo') {
+    el.textContent = base;
+    el.style.color = '';
+  } else {
+    var prefijo = (info.nivel === 'sin-senal') ? '⚠ SIN SEÑAL — ' : '';
+    el.textContent = base + ' — ' + prefijo + GpsEstado.formatearAntiguedad(age);
+    el.style.color = info.color;
+  }
 }
 
 function dibujarRastro() {
