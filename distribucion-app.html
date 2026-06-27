@@ -555,7 +555,8 @@ function syncFirebase() {
 }
 
 // GPS: enviar posicion del chofer a Firebase
-var gpsWatchId   = null;
+var gpsWatchId   = null;   // id de watchPosition (web)
+var gpsNativeId  = null;   // id del watcher nativo (background-geolocation)
 var gpsLastWrite = 0;
 var gpsErrores   = 0;
 var wakeLock = null;
@@ -588,13 +589,23 @@ function setGpsStatus(estado, texto, precision) {
   pre.textContent = precision || '';
 }
 
-function escribirGps(pos) {
+// ¿Corremos dentro de la app nativa (Capacitor) o en el navegador/PWA?
+function esNativo() {
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+
+function bgGeo() {
+  return (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins.BackgroundGeolocation : null;
+}
+
+// Escritura a Firestore comun a web y nativo (no cambia el modelo de datos).
+function escribirGpsCoords(lat, lng, accuracy) {
   if (!db) return;
   try {
-    var punto = { lat: pos.coords.latitude, lng: pos.coords.longitude, ts: new Date().toISOString() };
+    var punto = { lat: lat, lng: lng, ts: new Date().toISOString() };
     db.collection('gps').doc(jornadaId).set({
       lat: punto.lat, lng: punto.lng,
-      precision: pos.coords.accuracy,
+      precision: accuracy,
       timestamp: punto.ts,
       chofer: nombreChofer || 'Chofer',
       rastro: firebase.firestore.FieldValue.arrayUnion(punto)
@@ -602,12 +613,15 @@ function escribirGps(pos) {
   } catch (e) {}
 }
 
+function escribirGps(pos) {
+  escribirGpsCoords(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+}
+
+// ---- Camino WEB (navegador / PWA): watchPosition ----
 function onGpsPos(pos) {
   gpsErrores = 0;
   var precM = Math.round(pos.coords.accuracy);
   setGpsStatus('gps-activo', 'GPS activo — enviando al jefe', 'Precision: ' + precM + 'm');
-
-  // Throttle: escribir como máximo cada 15s para no inflar el rastro
   var ahora = Date.now();
   if (ahora - gpsLastWrite < 15000) return;
   gpsLastWrite = ahora;
@@ -630,7 +644,7 @@ function onGpsErr(err) {
   }
 }
 
-function startGPS() {
+function startGPSWeb() {
   if (!navigator.geolocation) {
     setGpsStatus('gps-error', 'Este dispositivo no tiene GPS', '');
     showToast('Este dispositivo no soporta GPS', 'error');
@@ -646,12 +660,62 @@ function startGPS() {
   );
 }
 
-function stopGPS() {
+function stopGPSWeb() {
   if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   liberarWakeLock();
   setGpsStatus('gps-inactivo', 'GPS detenido', '');
-  document.getElementById('gps-status-bar').style.display = 'none';
+  var bar = document.getElementById('gps-status-bar'); if (bar) bar.style.display = 'none';
 }
+
+// ---- Camino NATIVO (app Android): background-geolocation ----
+function onNativePos(location) {
+  gpsErrores = 0;
+  var precM = Math.round(location.accuracy);
+  setGpsStatus('gps-activo', 'GPS activo (segundo plano) — enviando al jefe', 'Precision: ' + precM + 'm');
+  var ahora = Date.now();
+  if (ahora - gpsLastWrite < 15000) return;
+  gpsLastWrite = ahora;
+  escribirGpsCoords(location.latitude, location.longitude, location.accuracy);
+}
+
+function startGPSNativo() {
+  var BG = bgGeo();
+  if (!BG) { startGPSWeb(); return; } // fallback defensivo
+  if (gpsNativeId !== null) return;
+  setGpsStatus('gps-inactivo', 'Activando GPS en segundo plano...', '');
+  gpsLastWrite = 0;
+  BG.addWatcher({
+    backgroundMessage: 'Compartiendo tu ubicacion con la base',
+    backgroundTitle: 'Caveli — ruta activa',
+    requestPermissions: true,
+    stale: false,
+    distanceFilter: 20
+  }, function (location, error) {
+    if (error) {
+      if (error.code === 'NOT_AUTHORIZED') {
+        setGpsStatus('gps-error', 'Permiso de ubicacion denegado', 'Permite "Permitir siempre" en ajustes');
+        if (window.confirm('La app necesita tu ubicacion para compartirla con la base. ¿Abrir ajustes ahora?')) {
+          BG.openSettings();
+        }
+      } else {
+        setGpsStatus('gps-error', 'Error de GPS', (error.message || error.code || ''));
+      }
+      return;
+    }
+    onNativePos(location);
+  }).then(function (id) { gpsNativeId = id; });
+}
+
+function stopGPSNativo() {
+  var BG = bgGeo();
+  if (BG && gpsNativeId !== null) { BG.removeWatcher({ id: gpsNativeId }); gpsNativeId = null; }
+  setGpsStatus('gps-inactivo', 'GPS detenido', '');
+  var bar = document.getElementById('gps-status-bar'); if (bar) bar.style.display = 'none';
+}
+
+// ---- Despachadores: deciden nativo vs web ----
+function startGPS() { if (esNativo()) startGPSNativo(); else startGPSWeb(); }
+function stopGPS()  { if (esNativo()) stopGPSNativo(); else stopGPSWeb(); }
 
 // ===== SELECTOR DE SESION =====
 function mostrarSelectorSesion(fechaHoy) {
@@ -1562,7 +1626,7 @@ iniciarIdentificacion();
 initFirebase();
 updateAll();
 if(startTime&&!timerInterval) startTimer();
-if(startTime&&gpsWatchId===null) startGPS();
+if(startTime && gpsWatchId===null && gpsNativeId===null) startGPS();
 setConexion(navigator.onLine);
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible' && gpsWatchId !== null) {
