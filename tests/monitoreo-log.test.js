@@ -17,11 +17,15 @@ assert.strictEqual(M.obtenerEventos().length, M.MAX);
 assert.strictEqual(M.obtenerEventos()[0].detalle, '204');   // el más reciente
 assert.strictEqual(M.obtenerEventos()[M.MAX - 1].detalle, '5'); // se descartaron 0..4
 
-// Última sync OK
+// Última sync OK por flujo (entrega / gps) — independientes
 M.reset();
-assert.strictEqual(M.ultimaSyncOk(), null);
-M.marcarSyncOk();
-assert.ok(typeof M.ultimaSyncOk() === 'string' && M.ultimaSyncOk().length > 0);
+assert.strictEqual(M.ultimaSyncOk('entrega'), null);
+assert.strictEqual(M.ultimaSyncOk('gps'), null);
+M.marcarSyncOk('entrega');
+assert.ok(typeof M.ultimaSyncOk('entrega') === 'string' && M.ultimaSyncOk('entrega').length > 0);
+assert.strictEqual(M.ultimaSyncOk('gps'), null); // gps no se afecta por entrega
+M.marcarSyncOk('gps');
+assert.ok(typeof M.ultimaSyncOk('gps') === 'string');
 
 // Pendientes
 M.reset();

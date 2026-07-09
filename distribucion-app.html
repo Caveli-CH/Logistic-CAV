@@ -272,9 +272,10 @@ tr:hover td{background:#f9f9f9;}
   </div>
 
 <div id="tab-monitoreo" class="tab-content">
-  <div class="card">
+  <div class="section">
     <h2>&#128225; Monitoreo</h2>
-    <p class="ultima-act" id="mon-ultima-sync">Ultima sincronizacion OK: -</p>
+    <p class="ultima-act" id="mon-ultima-entrega">Ultima entrega subida OK: -</p>
+    <p class="ultima-act" id="mon-ultima-gps">Ultimo GPS OK: -</p>
     <p class="ultima-act" id="mon-pendientes">Cambios pendientes de subir: 0</p>
     <button onclick="compartirMonitoreo()" style="margin:8px 0;padding:10px 14px;background:#2d5f4f;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">&#128203; Copiar / Compartir registro</button>
     <div id="monitoreo-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:12px"></div>
@@ -405,6 +406,15 @@ var firebaseConfig = {
   messagingSenderId: "803512261609",
   appId: "1:803512261609:web:6e8f11bd95ce6ff5474978"
 };
+
+if (typeof Monitoreo === 'undefined') {
+  window.Monitoreo = {
+    registrar: function () {}, obtenerEventos: function () { return []; },
+    marcarSyncOk: function () {}, ultimaSyncOk: function () { return null; },
+    setPendientes: function () {}, getPendientes: function () { return 0; },
+    formatearTexto: function () { return ''; }, reset: function () {}, MAX: 200
+  };
+}
 
 // ===== FIREBASE INIT =====
 var fbApp, db, jornadaId, clientesListener;
@@ -570,10 +580,10 @@ function syncFirebase() {
     chofer: nombreChofer || 'Chofer'
   }).then(function() {
     Monitoreo.registrar('entrega', 'ok', 'Entregas subidas (' + deliveries.length + ')');
-    Monitoreo.marcarSyncOk();
+    Monitoreo.marcarSyncOk('entrega');
     Monitoreo.setPendientes(0);
   }).catch(function(e) {
-    Monitoreo.registrar('firebase', 'error', 'No subio entregas: ' + (e.code || '') + ' ' + (e.message || ''));
+    Monitoreo.registrar('entrega', 'error', 'No subio entregas: ' + (e.code || '') + ' ' + (e.message || ''));
     Monitoreo.setPendientes(Monitoreo.getPendientes() + 1);
   });
 }
@@ -583,6 +593,7 @@ var gpsWatchId   = null;   // id de watchPosition (web)
 var gpsNativeId  = null;   // id del watcher nativo (background-geolocation)
 var gpsLastWrite = 0;
 var gpsErrores   = 0;
+var gpsOkUltimoLog = 0;
 var wakeLock = null;
 
 function pedirWakeLock() {
@@ -634,8 +645,12 @@ function escribirGpsCoords(lat, lng, accuracy) {
       chofer: nombreChofer || 'Chofer',
       rastro: firebase.firestore.FieldValue.arrayUnion(punto)
     }, { merge: true }).then(function() {
-      Monitoreo.registrar('gps', 'ok', 'GPS enviado (' + Math.round(accuracy) + 'm)');
-      Monitoreo.marcarSyncOk();
+      Monitoreo.marcarSyncOk('gps');
+      var ahoraLog = Date.now();
+      if (ahoraLog - gpsOkUltimoLog >= 300000) {
+        gpsOkUltimoLog = ahoraLog;
+        Monitoreo.registrar('gps', 'ok', 'GPS enviado (' + Math.round(accuracy) + 'm)');
+      }
     }).catch(function(e) {
       Monitoreo.registrar('gps', 'error', 'GPS no envio: ' + (e.code || '') + ' ' + (e.message || ''));
     });
@@ -928,9 +943,12 @@ function escaparHtml(s) {
 }
 
 function renderMonitoreo() {
-  var ts = Monitoreo.ultimaSyncOk();
-  document.getElementById('mon-ultima-sync').textContent =
-    'Ultima sincronizacion OK: ' + (ts ? new Date(ts).toLocaleString('es-CL') : 'nunca');
+  var te = Monitoreo.ultimaSyncOk('entrega');
+  var tg = Monitoreo.ultimaSyncOk('gps');
+  document.getElementById('mon-ultima-entrega').textContent =
+    'Ultima entrega subida OK: ' + (te ? new Date(te).toLocaleString('es-CL') : 'nunca');
+  document.getElementById('mon-ultima-gps').textContent =
+    'Ultimo GPS OK: ' + (tg ? new Date(tg).toLocaleString('es-CL') : 'nunca');
   document.getElementById('mon-pendientes').textContent =
     'Cambios pendientes de subir: ' + Monitoreo.getPendientes();
 

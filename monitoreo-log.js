@@ -4,7 +4,7 @@
   var CLAVE = 'caveli_monitoreo';
   var MAX = 200;
   var eventos = [];      // orden interno: más antiguo primero
-  var syncOkTs = null;
+  var syncOk = { entrega: null, gps: null };
   var pendientes = 0;
 
   function tieneLS() {
@@ -13,14 +13,18 @@
 
   function persistir() {
     if (!tieneLS()) return;
-    try { localStorage.setItem(CLAVE, JSON.stringify({ eventos: eventos, syncOkTs: syncOkTs })); } catch (e) {}
+    try { localStorage.setItem(CLAVE, JSON.stringify({ eventos: eventos, syncOk: syncOk, pendientes: pendientes })); } catch (e) {}
   }
 
   function rehidratar() {
     if (!tieneLS()) return;
     try {
       var s = JSON.parse(localStorage.getItem(CLAVE) || 'null');
-      if (s) { eventos = s.eventos || []; syncOkTs = s.syncOkTs || null; }
+      if (s) {
+        eventos = s.eventos || [];
+        syncOk = s.syncOk || { entrega: null, gps: null };
+        pendientes = s.pendientes || 0;
+      }
     } catch (e) {}
   }
 
@@ -34,10 +38,14 @@
     return eventos.slice().reverse(); // más reciente primero
   }
 
-  function marcarSyncOk() { syncOkTs = new Date().toISOString(); persistir(); }
-  function ultimaSyncOk() { return syncOkTs; }
+  function marcarSyncOk(stream) {
+    if (stream !== 'entrega' && stream !== 'gps') return;
+    syncOk[stream] = new Date().toISOString();
+    persistir();
+  }
+  function ultimaSyncOk(stream) { return syncOk[stream] || null; }
 
-  function setPendientes(n) { pendientes = n; }
+  function setPendientes(n) { pendientes = n; persistir(); }
   function getPendientes() { return pendientes; }
 
   function formatearTexto() {
@@ -48,7 +56,7 @@
     }).join('\n');
   }
 
-  function reset() { eventos = []; syncOkTs = null; pendientes = 0; }
+  function reset() { eventos = []; syncOk = { entrega: null, gps: null }; pendientes = 0; }
 
   rehidratar();
 
