@@ -9,6 +9,7 @@ var out = path.join(root, 'www');
 var archivos = [
   'index.html',
   'distribucion-app.html',
+  'monitoreo-log.js',
   'manifest.json',
   'sw.js',
   'icon-192.svg',

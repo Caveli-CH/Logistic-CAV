@@ -173,6 +173,7 @@ tr:hover td{background:#f9f9f9;}
   <button class="tab" id="tab-btn-ruta" onclick="switchTab('ruta',this)">&#128506; Ruta</button>
   <button class="tab" id="tab-btn-entregas" onclick="switchTab('entregas',this)">&#10003; Entregas <span class="badge" id="badge-pend" style="display:none">0</span></button>
   <button class="tab" id="tab-btn-reporte" onclick="switchTab('reporte',this)">&#128202; Reporte</button>
+  <button class="tab" id="tab-btn-monitoreo" onclick="switchTab('monitoreo',this)">&#128225; Monitoreo</button>
 </div>
 
 <div class="container">
@@ -269,6 +270,17 @@ tr:hover td{background:#f9f9f9;}
       </div>
     </div>
   </div>
+
+<div id="tab-monitoreo" class="tab-content">
+  <div class="section">
+    <h2>&#128225; Monitoreo</h2>
+    <p class="ultima-act" id="mon-ultima-entrega">Ultima entrega subida OK: -</p>
+    <p class="ultima-act" id="mon-ultima-gps">Ultimo GPS OK: -</p>
+    <p class="ultima-act" id="mon-pendientes">Cambios pendientes de subir: 0</p>
+    <button onclick="compartirMonitoreo()" style="margin:8px 0;padding:10px 14px;background:#2d5f4f;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">&#128203; Copiar / Compartir registro</button>
+    <div id="monitoreo-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:12px"></div>
+  </div>
+</div>
 
 </div>
 
@@ -381,6 +393,7 @@ tr:hover td{background:#f9f9f9;}
 
 <div class="toast" id="toast"></div>
 
+<script src="monitoreo-log.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
@@ -394,6 +407,15 @@ var firebaseConfig = {
   appId: "1:803512261609:web:6e8f11bd95ce6ff5474978"
 };
 
+if (typeof Monitoreo === 'undefined') {
+  window.Monitoreo = {
+    registrar: function () {}, obtenerEventos: function () { return []; },
+    marcarSyncOk: function () {}, ultimaSyncOk: function () { return null; },
+    setPendientes: function () {}, getPendientes: function () { return 0; },
+    formatearTexto: function () { return ''; }, reset: function () {}, MAX: 200
+  };
+}
+
 // ===== FIREBASE INIT =====
 var fbApp, db, jornadaId, clientesListener;
 var pendingSyncs = 0;
@@ -402,6 +424,7 @@ function initFirebase() {
   try {
     fbApp = firebase.initializeApp(firebaseConfig);
     db    = firebase.firestore();
+    Monitoreo.registrar('firebase', 'ok', 'Firebase inicializado');
 
     // OFFLINE: activar persistencia — Firestore guarda y sincroniza automaticamente
     db.enablePersistence({synchronizeTabs: false}).then(function() {
@@ -414,6 +437,7 @@ function initFirebase() {
     var sessionGuardada = localStorage.getItem('caveli_session');
     if (sessionGuardada && sessionGuardada.startsWith(fechaHoy)) {
       jornadaId = sessionGuardada;
+      Monitoreo.registrar('sesion', 'info', 'Sesion restaurada: ' + jornadaId);
       console.log('Firebase OK, sesion:', jornadaId);
       escucharClientes();
     } else {
@@ -424,6 +448,7 @@ function initFirebase() {
     document.getElementById('fb-estado').textContent = 'Conectado a Firebase';
     document.getElementById('fb-estado').style.color = '#27ae60';
   } catch(e) {
+    Monitoreo.registrar('firebase', 'error', 'Init fallo: ' + (e.message || e));
     console.warn('Firebase no disponible:', e.message);
     document.getElementById('fb-estado').textContent = 'Sin conexion Firebase';
     document.getElementById('fb-estado').style.color = '#d94545';
@@ -456,10 +481,12 @@ function setConexion(online) {
 }
 
 window.addEventListener('online',  function() {
+  Monitoreo.registrar('conexion', 'info', 'Internet restaurado');
   setConexion(true);
   if (pendingSyncs > 0) showToast('Conexion restaurada - sincronizando...', 'success');
 });
 window.addEventListener('offline', function() {
+  Monitoreo.registrar('conexion', 'info', 'Sin internet');
   setConexion(false);
   showToast('Sin internet - entregas guardadas en el celular', 'error');
 });
@@ -551,7 +578,14 @@ function syncFirebase() {
     startTime: startTime ? startTime.toISOString() : null,
     ultimaActualizacion: new Date().toISOString(),
     chofer: nombreChofer || 'Chofer'
-  }).catch(function(e) { console.warn('Sync queued (offline):', e.code); });
+  }).then(function() {
+    Monitoreo.registrar('entrega', 'ok', 'Entregas subidas (' + deliveries.length + ')');
+    Monitoreo.marcarSyncOk('entrega');
+    Monitoreo.setPendientes(0);
+  }).catch(function(e) {
+    Monitoreo.registrar('entrega', 'error', 'No subio entregas: ' + (e.code || '') + ' ' + (e.message || ''));
+    Monitoreo.setPendientes(Monitoreo.getPendientes() + 1);
+  });
 }
 
 // GPS: enviar posicion del chofer a Firebase
@@ -559,6 +593,7 @@ var gpsWatchId   = null;   // id de watchPosition (web)
 var gpsNativeId  = null;   // id del watcher nativo (background-geolocation)
 var gpsLastWrite = 0;
 var gpsErrores   = 0;
+var gpsOkUltimoLog = 0;
 var wakeLock = null;
 
 function pedirWakeLock() {
@@ -609,8 +644,19 @@ function escribirGpsCoords(lat, lng, accuracy) {
       timestamp: punto.ts,
       chofer: nombreChofer || 'Chofer',
       rastro: firebase.firestore.FieldValue.arrayUnion(punto)
-    }, { merge: true });
-  } catch (e) {}
+    }, { merge: true }).then(function() {
+      Monitoreo.marcarSyncOk('gps');
+      var ahoraLog = Date.now();
+      if (ahoraLog - gpsOkUltimoLog >= 300000) {
+        gpsOkUltimoLog = ahoraLog;
+        Monitoreo.registrar('gps', 'ok', 'GPS enviado (' + Math.round(accuracy) + 'm)');
+      }
+    }).catch(function(e) {
+      Monitoreo.registrar('gps', 'error', 'GPS no envio: ' + (e.code || '') + ' ' + (e.message || ''));
+    });
+  } catch (e) {
+    Monitoreo.registrar('gps', 'error', 'GPS excepcion: ' + (e.message || e));
+  }
 }
 
 function escribirGps(pos) {
@@ -758,6 +804,7 @@ function mostrarSelectorSesion(fechaHoy) {
 
 function seleccionarSesion(jid, nombre) {
   jornadaId = jid;
+  Monitoreo.registrar('sesion', 'info', 'Sesion iniciada: ' + jid);
   localStorage.setItem('caveli_session', jid);
   nombreChofer = nombre;
   localStorage.setItem('caveli_chofer', nombre);
@@ -888,6 +935,53 @@ function switchTab(name, btn) {
   if (name === 'entregas') renderClients();
   else if (name === 'reporte') renderReport();
   else if (name === 'ruta') renderRuta();
+  else if (name === 'monitoreo') renderMonitoreo();
+}
+
+function escaparHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderMonitoreo() {
+  var te = Monitoreo.ultimaSyncOk('entrega');
+  var tg = Monitoreo.ultimaSyncOk('gps');
+  document.getElementById('mon-ultima-entrega').textContent =
+    'Ultima entrega subida OK: ' + (te ? new Date(te).toLocaleString('es-CL') : 'nunca');
+  document.getElementById('mon-ultima-gps').textContent =
+    'Ultimo GPS OK: ' + (tg ? new Date(tg).toLocaleString('es-CL') : 'nunca');
+  document.getElementById('mon-pendientes').textContent =
+    'Cambios pendientes de subir: ' + Monitoreo.getPendientes();
+
+  var cont = document.getElementById('monitoreo-lista');
+  var eventos = Monitoreo.obtenerEventos();
+  if (eventos.length === 0) {
+    cont.innerHTML = '<div style="color:#999;text-align:center;padding:12px">Sin eventos aun</div>';
+    return;
+  }
+  cont.innerHTML = eventos.map(function (e) {
+    var hora  = new Date(e.ts).toLocaleTimeString('es-CL');
+    var ic    = e.resultado === 'ok' ? '&#10003;' : (e.resultado === 'error' ? '&#10007;' : '&#8226;');
+    var color = e.resultado === 'ok' ? '#27ae60' : (e.resultado === 'error' ? '#d94545' : '#888');
+    return '<div style="border-bottom:1px solid #eee;padding:4px 0">' +
+      '<span style="color:#999">' + hora + '</span> ' +
+      '<span style="color:' + color + ';font-weight:700">' + ic + '</span> ' +
+      '<span style="color:#666">[' + escaparHtml(e.tipo) + ']</span> ' +
+      escaparHtml(e.detalle) +
+      '</div>';
+  }).join('');
+}
+
+function compartirMonitoreo() {
+  var texto = Monitoreo.formatearTexto();
+  if (navigator.share) {
+    navigator.share({ title: 'Monitoreo Caveli', text: texto }).catch(function () {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(texto)
+      .then(function () { showToast('Registro copiado', 'success'); })
+      .catch(function () { showToast('No se pudo copiar', 'error'); });
+  } else {
+    showToast('Compartir no disponible en este dispositivo', 'error');
+  }
 }
 
 // ===== MANUAL =====
