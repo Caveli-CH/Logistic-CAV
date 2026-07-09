@@ -1,0 +1,69 @@
+// Registro local de eventos/fallas de la app del chofer.
+// Usable en navegador (window.Monitoreo) y en Node (require). Sin dependencias.
+(function (root) {
+  var CLAVE = 'caveli_monitoreo';
+  var MAX = 200;
+  var eventos = [];      // orden interno: más antiguo primero
+  var syncOkTs = null;
+  var pendientes = 0;
+
+  function tieneLS() {
+    try { return (typeof localStorage !== 'undefined') && !!localStorage; } catch (e) { return false; }
+  }
+
+  function persistir() {
+    if (!tieneLS()) return;
+    try { localStorage.setItem(CLAVE, JSON.stringify({ eventos: eventos, syncOkTs: syncOkTs })); } catch (e) {}
+  }
+
+  function rehidratar() {
+    if (!tieneLS()) return;
+    try {
+      var s = JSON.parse(localStorage.getItem(CLAVE) || 'null');
+      if (s) { eventos = s.eventos || []; syncOkTs = s.syncOkTs || null; }
+    } catch (e) {}
+  }
+
+  function registrar(tipo, resultado, detalle) {
+    eventos.push({ ts: new Date().toISOString(), tipo: tipo, resultado: resultado, detalle: detalle || '' });
+    if (eventos.length > MAX) { eventos = eventos.slice(eventos.length - MAX); }
+    persistir();
+  }
+
+  function obtenerEventos() {
+    return eventos.slice().reverse(); // más reciente primero
+  }
+
+  function marcarSyncOk() { syncOkTs = new Date().toISOString(); persistir(); }
+  function ultimaSyncOk() { return syncOkTs; }
+
+  function setPendientes(n) { pendientes = n; }
+  function getPendientes() { return pendientes; }
+
+  function formatearTexto() {
+    return obtenerEventos().map(function (e) {
+      var hora = new Date(e.ts).toLocaleString('es-CL');
+      var ic = e.resultado === 'ok' ? 'OK' : (e.resultado === 'error' ? 'ERROR' : '-');
+      return hora + '  ' + ic + ' [' + e.tipo + '] ' + e.detalle;
+    }).join('\n');
+  }
+
+  function reset() { eventos = []; syncOkTs = null; pendientes = 0; }
+
+  rehidratar();
+
+  var api = {
+    registrar: registrar,
+    obtenerEventos: obtenerEventos,
+    marcarSyncOk: marcarSyncOk,
+    ultimaSyncOk: ultimaSyncOk,
+    setPendientes: setPendientes,
+    getPendientes: getPendientes,
+    formatearTexto: formatearTexto,
+    reset: reset,
+    MAX: MAX
+  };
+
+  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
+  else { root.Monitoreo = api; }
+})(typeof self !== 'undefined' ? self : this);
