@@ -414,6 +414,7 @@ function initFirebase() {
   try {
     fbApp = firebase.initializeApp(firebaseConfig);
     db    = firebase.firestore();
+    Monitoreo.registrar('firebase', 'ok', 'Firebase inicializado');
 
     // OFFLINE: activar persistencia — Firestore guarda y sincroniza automaticamente
     db.enablePersistence({synchronizeTabs: false}).then(function() {
@@ -426,6 +427,7 @@ function initFirebase() {
     var sessionGuardada = localStorage.getItem('caveli_session');
     if (sessionGuardada && sessionGuardada.startsWith(fechaHoy)) {
       jornadaId = sessionGuardada;
+      Monitoreo.registrar('sesion', 'info', 'Sesion restaurada: ' + jornadaId);
       console.log('Firebase OK, sesion:', jornadaId);
       escucharClientes();
     } else {
@@ -436,6 +438,7 @@ function initFirebase() {
     document.getElementById('fb-estado').textContent = 'Conectado a Firebase';
     document.getElementById('fb-estado').style.color = '#27ae60';
   } catch(e) {
+    Monitoreo.registrar('firebase', 'error', 'Init fallo: ' + (e.message || e));
     console.warn('Firebase no disponible:', e.message);
     document.getElementById('fb-estado').textContent = 'Sin conexion Firebase';
     document.getElementById('fb-estado').style.color = '#d94545';
@@ -468,10 +471,12 @@ function setConexion(online) {
 }
 
 window.addEventListener('online',  function() {
+  Monitoreo.registrar('conexion', 'info', 'Internet restaurado');
   setConexion(true);
   if (pendingSyncs > 0) showToast('Conexion restaurada - sincronizando...', 'success');
 });
 window.addEventListener('offline', function() {
+  Monitoreo.registrar('conexion', 'info', 'Sin internet');
   setConexion(false);
   showToast('Sin internet - entregas guardadas en el celular', 'error');
 });
@@ -563,7 +568,14 @@ function syncFirebase() {
     startTime: startTime ? startTime.toISOString() : null,
     ultimaActualizacion: new Date().toISOString(),
     chofer: nombreChofer || 'Chofer'
-  }).catch(function(e) { console.warn('Sync queued (offline):', e.code); });
+  }).then(function() {
+    Monitoreo.registrar('entrega', 'ok', 'Entregas subidas (' + deliveries.length + ')');
+    Monitoreo.marcarSyncOk();
+    Monitoreo.setPendientes(0);
+  }).catch(function(e) {
+    Monitoreo.registrar('firebase', 'error', 'No subio entregas: ' + (e.code || '') + ' ' + (e.message || ''));
+    Monitoreo.setPendientes(Monitoreo.getPendientes() + 1);
+  });
 }
 
 // GPS: enviar posicion del chofer a Firebase
@@ -621,8 +633,15 @@ function escribirGpsCoords(lat, lng, accuracy) {
       timestamp: punto.ts,
       chofer: nombreChofer || 'Chofer',
       rastro: firebase.firestore.FieldValue.arrayUnion(punto)
-    }, { merge: true });
-  } catch (e) {}
+    }, { merge: true }).then(function() {
+      Monitoreo.registrar('gps', 'ok', 'GPS enviado (' + Math.round(accuracy) + 'm)');
+      Monitoreo.marcarSyncOk();
+    }).catch(function(e) {
+      Monitoreo.registrar('gps', 'error', 'GPS no envio: ' + (e.code || '') + ' ' + (e.message || ''));
+    });
+  } catch (e) {
+    Monitoreo.registrar('gps', 'error', 'GPS excepcion: ' + (e.message || e));
+  }
 }
 
 function escribirGps(pos) {
@@ -770,6 +789,7 @@ function mostrarSelectorSesion(fechaHoy) {
 
 function seleccionarSesion(jid, nombre) {
   jornadaId = jid;
+  Monitoreo.registrar('sesion', 'info', 'Sesion iniciada: ' + jid);
   localStorage.setItem('caveli_session', jid);
   nombreChofer = nombre;
   localStorage.setItem('caveli_chofer', nombre);
