@@ -173,6 +173,7 @@ tr:hover td{background:#f9f9f9;}
   <button class="tab" id="tab-btn-ruta" onclick="switchTab('ruta',this)">&#128506; Ruta</button>
   <button class="tab" id="tab-btn-entregas" onclick="switchTab('entregas',this)">&#10003; Entregas <span class="badge" id="badge-pend" style="display:none">0</span></button>
   <button class="tab" id="tab-btn-reporte" onclick="switchTab('reporte',this)">&#128202; Reporte</button>
+  <button class="tab" id="tab-btn-monitoreo" onclick="switchTab('monitoreo',this)">&#128225; Monitoreo</button>
 </div>
 
 <div class="container">
@@ -269,6 +270,16 @@ tr:hover td{background:#f9f9f9;}
       </div>
     </div>
   </div>
+
+<div id="tab-monitoreo" class="tab-content">
+  <div class="card">
+    <h2>&#128225; Monitoreo</h2>
+    <p class="ultima-act" id="mon-ultima-sync">Ultima sincronizacion OK: -</p>
+    <p class="ultima-act" id="mon-pendientes">Cambios pendientes de subir: 0</p>
+    <button onclick="compartirMonitoreo()" style="margin:8px 0;padding:10px 14px;background:#2d5f4f;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">&#128203; Copiar / Compartir registro</button>
+    <div id="monitoreo-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:12px"></div>
+  </div>
+</div>
 
 </div>
 
@@ -381,6 +392,7 @@ tr:hover td{background:#f9f9f9;}
 
 <div class="toast" id="toast"></div>
 
+<script src="monitoreo-log.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
@@ -888,6 +900,50 @@ function switchTab(name, btn) {
   if (name === 'entregas') renderClients();
   else if (name === 'reporte') renderReport();
   else if (name === 'ruta') renderRuta();
+  else if (name === 'monitoreo') renderMonitoreo();
+}
+
+function escaparHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderMonitoreo() {
+  var ts = Monitoreo.ultimaSyncOk();
+  document.getElementById('mon-ultima-sync').textContent =
+    'Ultima sincronizacion OK: ' + (ts ? new Date(ts).toLocaleString('es-CL') : 'nunca');
+  document.getElementById('mon-pendientes').textContent =
+    'Cambios pendientes de subir: ' + Monitoreo.getPendientes();
+
+  var cont = document.getElementById('monitoreo-lista');
+  var eventos = Monitoreo.obtenerEventos();
+  if (eventos.length === 0) {
+    cont.innerHTML = '<div style="color:#999;text-align:center;padding:12px">Sin eventos aun</div>';
+    return;
+  }
+  cont.innerHTML = eventos.map(function (e) {
+    var hora  = new Date(e.ts).toLocaleTimeString('es-CL');
+    var ic    = e.resultado === 'ok' ? '&#10003;' : (e.resultado === 'error' ? '&#10007;' : '&#8226;');
+    var color = e.resultado === 'ok' ? '#27ae60' : (e.resultado === 'error' ? '#d94545' : '#888');
+    return '<div style="border-bottom:1px solid #eee;padding:4px 0">' +
+      '<span style="color:#999">' + hora + '</span> ' +
+      '<span style="color:' + color + ';font-weight:700">' + ic + '</span> ' +
+      '<span style="color:#666">[' + escaparHtml(e.tipo) + ']</span> ' +
+      escaparHtml(e.detalle) +
+      '</div>';
+  }).join('');
+}
+
+function compartirMonitoreo() {
+  var texto = Monitoreo.formatearTexto();
+  if (navigator.share) {
+    navigator.share({ title: 'Monitoreo Caveli', text: texto }).catch(function () {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(texto)
+      .then(function () { showToast('Registro copiado', 'success'); })
+      .catch(function () { showToast('No se pudo copiar', 'error'); });
+  } else {
+    showToast('Compartir no disponible en este dispositivo', 'error');
+  }
 }
 
 // ===== MANUAL =====
