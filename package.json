@@ -4,7 +4,7 @@
   "private": true,
   "description": "App nativa del chofer - Distribuidora Caveli",
   "scripts": {
-    "test": "node tests/gps-estado.test.js",
+    "test": "node tests/gps-estado.test.js && node tests/jornada-id.test.js",
     "copy-web": "node scripts/copy-web.js",
     "sync": "npm run copy-web && npx cap sync"
   },

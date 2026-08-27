@@ -10,6 +10,7 @@ var archivos = [
   'index.html',
   'distribucion-app.html',
   'monitoreo-log.js',
+  'jornada-id.js',
   'manifest.json',
   'sw.js',
   'icon-192.svg',
