@@ -393,6 +393,7 @@ tr:hover td{background:#f9f9f9;}
 
 <div class="toast" id="toast"></div>
 
+<script src="jornada-id.js"></script>
 <script src="monitoreo-log.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -595,6 +596,7 @@ var gpsLastWrite = 0;
 var gpsErrores   = 0;
 var gpsOkUltimoLog = 0;
 var wakeLock = null;
+var vehiculoFisicoAsignado = null; // imei del GPS fisico si el chofer tiene uno asignado hoy, o null
 
 function pedirWakeLock() {
   try {
@@ -631,6 +633,23 @@ function esNativo() {
 
 function bgGeo() {
   return (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins.BackgroundGeolocation : null;
+}
+
+// Consulta si el vehiculo de hoy tiene GPS fisico asignado (jornadas/registro-{fecha}).
+// Si lo tiene, el telefono no debe enviar su propio GPS (evita que ambas fuentes escriban
+// al mismo tiempo y el marcador "pelee" entre una posicion y otra).
+function cargarVehiculoAsignado() {
+  if (!db || !jornadaId) return Promise.resolve(null);
+  var partes = JornadaId.parsearJornadaId(jornadaId);
+  return db.collection('jornadas').doc('registro-' + partes.fecha).get().then(function(doc) {
+    vehiculoFisicoAsignado = null;
+    if (doc.exists) {
+      var lista = doc.data().choferes || [];
+      var propio = lista.filter(function(c) { return c.slug === partes.slug; })[0];
+      if (propio && propio.vehiculoImei) vehiculoFisicoAsignado = propio.vehiculoImei;
+    }
+    return vehiculoFisicoAsignado;
+  }).catch(function() { vehiculoFisicoAsignado = null; return null; });
 }
 
 // Escritura a Firestore comun a web y nativo (no cambia el modelo de datos).
@@ -760,7 +779,14 @@ function stopGPSNativo() {
 }
 
 // ---- Despachadores: deciden nativo vs web ----
-function startGPS() { if (esNativo()) startGPSNativo(); else startGPSWeb(); }
+function startGPS() {
+  if (vehiculoFisicoAsignado) {
+    setGpsStatus('gps-inactivo', 'GPS fisico activo para este vehiculo', 'El telefono no envia ubicacion');
+    Monitoreo.registrar('gps', 'info', 'GPS telefono desactivado: vehiculo ' + vehiculoFisicoAsignado + ' tiene GPS fisico');
+    return;
+  }
+  if (esNativo()) startGPSNativo(); else startGPSWeb();
+}
 function stopGPS()  { if (esNativo()) stopGPSNativo(); else stopGPSWeb(); }
 
 // ===== SELECTOR DE SESION =====
@@ -1590,7 +1616,7 @@ function startRoute() {
   if (clients.length === 0) { showToast('El jefe aun no carga los clientes', 'error'); return; }
   if (!startTime) {
     startTime = new Date(); startTimer(); save();
-    startGPS();
+    cargarVehiculoAsignado().then(startGPS);
   }
   document.getElementById('btn-start').textContent = '&#9679; Ruta en curso';
   actualizarBoxOptimizar();
@@ -1720,7 +1746,7 @@ iniciarIdentificacion();
 initFirebase();
 updateAll();
 if(startTime&&!timerInterval) startTimer();
-if(startTime && gpsWatchId===null && gpsNativeId===null) startGPS();
+if(startTime && gpsWatchId===null && gpsNativeId===null) cargarVehiculoAsignado().then(startGPS);
 setConexion(navigator.onLine);
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible' && gpsWatchId !== null) {
