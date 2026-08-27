@@ -108,7 +108,8 @@ header h1{font-size:20px;font-weight:700;}
 .alert-error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
 .btn-group{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
 .chofer-tabs{display:flex;background:var(--primary);padding:0 20px;gap:4px;border-top:1px solid rgba(255,255,255,0.15);}
-.chofer-tab{padding:10px 18px;color:rgba(255,255,255,0.65);font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.15s;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.chofer-tab{padding:10px 18px;color:rgba(255,255,255,0.65);font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.15s;display:flex;flex-direction:column;align-items:stretch;white-space:nowrap;}
+.chofer-tab>div{display:flex;align-items:center;gap:6px;}
 .chofer-tab:hover{color:rgba(255,255,255,0.9);}
 .chofer-tab.active{color:white;border-bottom-color:white;}
 .chofer-tab-nombre{max-width:120px;overflow:hidden;text-overflow:ellipsis;}
@@ -305,8 +306,50 @@ var jornadaId = fechaBase; // se recalcula al seleccionar chofer
 
 // ===== MULTI-CHOFER =====
 var CHOFERES_KEY = 'caveli_choferes_v1';
-var choferes = JSON.parse(localStorage.getItem(CHOFERES_KEY) || '["","","",""]');
+var choferes = JSON.parse(localStorage.getItem(CHOFERES_KEY) || '["Francisco Muñoz","","",""]');
 var choferActivo = 0; // índice 0-3
+
+// ===== VEHICULOS (GPS fisico) =====
+var VEHICULOS_KEY = 'caveli_vehiculos_v1';
+var vehiculosPorChofer = JSON.parse(localStorage.getItem(VEHICULOS_KEY) || '["","","",""]'); // imei por cupo, o "" si no tiene GPS fisico
+var catalogoVehiculos = []; // [{imei, nombre}], cargado desde Firestore
+
+function guardarVehiculosPorChofer() {
+  localStorage.setItem(VEHICULOS_KEY, JSON.stringify(vehiculosPorChofer));
+}
+
+function cargarCatalogoVehiculos() {
+  if (!db) return;
+  db.collection('vehiculos').get().then(function(snap) {
+    catalogoVehiculos = snap.docs.map(function(d) { return { imei: d.id, nombre: (d.data().nombre || d.id) }; });
+    renderTabs();
+  }).catch(function(err) { console.warn('Error cargando vehiculos:', err); });
+}
+
+function agregarVehiculoNuevo(idx) {
+  var imei = prompt('IMEI del GPS fisico (15 digitos, viene en la etiqueta del dispositivo):');
+  if (!imei) { renderTabs(); return; }
+  imei = imei.trim();
+  var nombre = prompt('Nombre para identificar este vehiculo (ej. Camion 1):', 'Camion ' + (catalogoVehiculos.length + 1));
+  if (!nombre) { renderTabs(); return; }
+  db.collection('vehiculos').doc(imei).set({
+    imei: imei, nombre: nombre.trim(), activo: true,
+    inmovilizadorDisponible: true, creado: new Date().toISOString()
+  }, { merge: true }).then(function() {
+    catalogoVehiculos.push({ imei: imei, nombre: nombre.trim() });
+    vehiculosPorChofer[idx] = imei;
+    guardarVehiculosPorChofer();
+    publicarRegistro();
+    renderTabs();
+  }).catch(function(err) { alert('No se pudo guardar el vehiculo: ' + err.message); renderTabs(); });
+}
+
+function asignarVehiculo(idx, valor) {
+  if (valor === '__nuevo__') { agregarVehiculoNuevo(idx); return; }
+  vehiculosPorChofer[idx] = valor;
+  guardarVehiculosPorChofer();
+  publicarRegistro();
+}
 
 function slugChofer(nombre) {
   return nombre.toLowerCase()
@@ -327,7 +370,12 @@ function guardarChoferes() {
 
 function publicarRegistro() {
   var activos = choferes
-    .map(function(n, i) { return n.trim() ? { nombre: n.trim(), slug: slugChofer(n), idx: i } : null; })
+    .map(function(n, i) {
+      if (!n.trim()) return null;
+      var entrada = { nombre: n.trim(), slug: slugChofer(n), idx: i };
+      if (vehiculosPorChofer[i]) entrada.vehiculoImei = vehiculosPorChofer[i];
+      return entrada;
+    })
     .filter(Boolean);
   if (activos.length === 0 || !db) return;
   db.collection('jornadas').doc('registro-' + fechaBase).set({
@@ -343,9 +391,19 @@ function renderTabs() {
   cont.innerHTML = choferes.map(function(nombre, i) {
     var label = nombre.trim() || ('Chofer ' + (i + 1));
     var activa = i === choferActivo;
-    return '<div class="chofer-tab' + (activa ? ' active' : '') + '" onclick="switchChofer(' + i + ')">' +
+    var imeiActual = vehiculosPorChofer[i] || '';
+    var opciones = '<option value="">Sin GPS fisico</option>' +
+      catalogoVehiculos.map(function(v) {
+        return '<option value="' + v.imei + '"' + (v.imei === imeiActual ? ' selected' : '') + '>' + v.nombre + '</option>';
+      }).join('') +
+      '<option value="__nuevo__">+ Agregar vehiculo...</option>';
+    return '<div class="chofer-tab' + (activa ? ' active' : '') + '">' +
+      '<div onclick="switchChofer(' + i + ')">' +
       '<span class="chofer-tab-nombre">' + label + '</span>' +
       '<button class="chofer-tab-edit" onclick="event.stopPropagation();renombrarChofer(' + i + ')" title="Renombrar">&#9998;</button>' +
+      '</div>' +
+      '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();asignarVehiculo(' + i + ', this.value)" ' +
+      'style="margin-top:4px;width:100%;font-size:11px;padding:2px">' + opciones + '</select>' +
       '</div>';
   }).join('');
 }
@@ -1238,6 +1296,7 @@ document.addEventListener('keydown', function(e) {
 function iniciarApp() {
   // Inicializar tab activo
   renderTabs();
+  cargarCatalogoVehiculos();
   // Publicar el registro del día con los choferes ya guardados, para que
   // CAV PRO y la app del chofer puedan verlos sin tener que reeditarlos.
   publicarRegistro();
