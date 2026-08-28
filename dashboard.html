@@ -328,7 +328,7 @@ function cargarCatalogoVehiculos() {
 
 function agregarVehiculoNuevo(idx) {
   var imei = prompt('IMEI del GPS fisico (15 digitos, viene en la etiqueta del dispositivo):');
-  if (!imei) { renderTabs(); return; }
+  if (!imei || !imei.trim()) { renderTabs(); return; }
   imei = imei.trim();
   var nombre = prompt('Nombre para identificar este vehiculo (ej. Camion 1):', 'Camion ' + (catalogoVehiculos.length + 1));
   if (!nombre) { renderTabs(); return; }

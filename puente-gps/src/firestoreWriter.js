@@ -16,7 +16,7 @@ function escribirGpsJornada(db, jornadaId, chofer, imei, datos) {
   var doc = {
     lat: datos.lat, lng: datos.lng,
     precision: datos.precision,
-    timestamp: punto.ts,
+    timestamp: datos.timestamp || punto.ts,
     chofer: chofer,
     fuenteGps: 'fisico',
     vehiculoImei: imei,
