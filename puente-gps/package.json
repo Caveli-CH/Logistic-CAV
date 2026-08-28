@@ -1,0 +1,14 @@
+{
+  "name": "puente-gps-traccar-firestore",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Puente Traccar -> Firestore para el GPS fisico de los vehiculos de Caveli",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/traccarClient.test.js && node test/asignaciones.test.js && node test/mapPosition.test.js && node test/firestoreWriter.test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
