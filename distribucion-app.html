@@ -640,6 +640,7 @@ function bgGeo() {
 // al mismo tiempo y el marcador "pelee" entre una posicion y otra).
 function cargarVehiculoAsignado() {
   if (!db || !jornadaId) return Promise.resolve(null);
+  if (typeof JornadaId === 'undefined') return Promise.resolve(null);
   var partes = JornadaId.parsearJornadaId(jornadaId);
   return db.collection('jornadas').doc('registro-' + partes.fecha).get().then(function(doc) {
     vehiculoFisicoAsignado = null;
