@@ -676,6 +676,8 @@ function initMap() {
     streetViewControl: false,
     fullscreenControl: true
   });
+  // Capa de trafico en tiempo real (calles verde/amarillo/rojo, como la app de Google Maps).
+  new google.maps.TrafficLayer().setMap(mapa);
 }
 
 function svgChofer(fill) {
