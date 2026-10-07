@@ -283,7 +283,23 @@ sudo ss -tlnp | grep 8082    # panel web de Traccar
 
 ## 9. PREGUNTAS PARA FABIÁN
 
-Lo que **no pude confirmar** desde el código/git/archivos y necesito de tu lado:
+> ### ⭐ PARA LA PRÓXIMA SESIÓN DE CLAUDE: estas 3 preguntas bloquean todo
+>
+> Fabián quiere que le ayudes a **responder estas 3 en detalle** antes de avanzar. Son el gate de la publicación del GPS físico. Para cada una te dejo **dónde/cómo encontrar la respuesta** para que no se la tengas que adivinar:
+>
+> 1. **¿Qué rama sirve GitHub Pages hoy (`main` o `master`)?**
+>    - Cómo averiguarlo: GitHub → repo `caveli-ch/Logistic-CAV` → **Settings → Pages → "Build and deployment" → Source/Branch**. Guialo clic por clic si hace falta. Alternativa: revisar si hay un workflow en `.github/workflows/` (no lo había al 2026-10-07) o un `CNAME`.
+>    - Por qué importa: `origin/main` y `origin/master` **no comparten ancestro** (sección 6), así que la rama que sirve Pages define si publicamos con un commit de snapshot o reconfigurando Pages.
+>
+> 2. **¿Migramos el mapa a Leaflet? ¿Y qué hacemos con la capa de tráfico de Google Maps?**
+>    - Contexto para decidir con él: Google Maps está degradado (venció la prueba gratis) y Fabián **no quiere poner tarjeta**. Leaflet + OpenStreetMap es gratis y sin key. Pero el commit `b84ceba` (8-sep) agregó `new google.maps.TrafficLayer()` en `dashboard.html:680`, y Leaflet no trae tráfico gratis equivalente.
+>    - Ayudalo a elegir: (a) Leaflet sin tráfico; (b) Leaflet + buscar fuente de tráfico alternativa; (c) quedarse en Google Maps degradado. Explicá el costo/beneficio de cada una en simple.
+>
+> 3. **¿La VM sigue encendida y la IP sigue siendo `148.116.110.159`?**
+>    - Cómo verificarlo (pedí permiso antes de tocar la VM): panel de Oracle Cloud → Compute → Instances → `caveli-traccar` (estado "Running" y la IP pública que figura). O desde su PC: abrir `http://148.116.110.159:8082` (si carga el panel de Traccar, la VM está viva y la IP no cambió). O `ssh ubuntu@148.116.110.159`.
+>    - Riesgo a resolver con él: la IP es **"ephemeral"**; conviene pasarla a **IP reservada** (gratis mientras esté asignada) para que el FMC920 no deje de reportar si la VM reinicia.
+
+Lo que **no pude confirmar** desde el código/git/archivos y necesito de tu lado (las 3 de arriba más estas):
 
 1. **GitHub Pages:** ¿qué rama/carpeta sirve la app en vivo? (GitHub → Settings → Pages → Source/Branch). Es el dato que **gatea toda la publicación**.
 2. **Mapa:** ¿confirmás migrar a **Leaflet** (gratis)? Y si sí: la capa de **tráfico** de Google Maps que se agregó el 8-sep, ¿la mantenemos (Leaflet no la trae gratis), la quitamos, o buscamos una alternativa? — *motivo por el que quedó pendiente: esperaba tu confirmación.*
