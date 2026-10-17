@@ -1,5 +1,7 @@
 # Memoria central de Caveli
 
+Al empezar la sesión, conecta el repo `Caveli-CH/caveli-vault` (add_repo, access push) antes de trabajar; no esperes a que Fabián lo pida.
+
 Antes de trabajar en cualquier tema de este repo, consulta el centro de memoria:
 https://github.com/Caveli-CH/caveli-vault (archivo `INDICE.md` primero, luego solo las notas necesarias).
 
