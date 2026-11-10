@@ -11,8 +11,11 @@ function escribirEstadoVehiculo(db, imei, datos) {
 // Mismo formato que escribirGpsCoords() de distribucion-app.html, mas los campos de
 // sensores como extras de nivel superior. rastro sigue siendo solo {lat,lng,ts} para
 // no arriesgar el limite de 1MB por documento de Firestore.
+// ts del rastro = hora real del GPS (fixTime), no la hora en que escribe el puente.
+// Antes se usaba la hora de escritura y, sin senal, el rastro sumaba puntos repetidos
+// con horas falsas.
 function escribirGpsJornada(db, jornadaId, chofer, imei, datos) {
-  var punto = { lat: datos.lat, lng: datos.lng, ts: new Date().toISOString() };
+  var punto = { lat: datos.lat, lng: datos.lng, ts: datos.timestamp || new Date().toISOString() };
   var doc = {
     lat: datos.lat, lng: datos.lng,
     precision: datos.precision,

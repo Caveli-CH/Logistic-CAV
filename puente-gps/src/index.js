@@ -1,7 +1,7 @@
 var admin = require('firebase-admin');
 var { crearClienteTraccar } = require('./traccarClient');
 var { obtenerAsignacionesHoy } = require('./asignaciones');
-var { mapearPosicion } = require('./mapPosition');
+var { mapearPosicion, esPosicionUtil } = require('./mapPosition');
 var { escribirEstadoVehiculo, escribirGpsJornada } = require('./firestoreWriter');
 
 var INTERVALO_MS = 15000; // igual al throttle de distribucion-app.html y dashboard.html
@@ -17,6 +17,11 @@ var traccar = crearClienteTraccar({
 
 function log(msg) { console.log('[' + new Date().toISOString() + '] ' + msg); }
 
+// Ultima hora de GPS (fixTime) ya escrita en el rastro de la jornada, por IMEI.
+// Traccar devuelve siempre la ultima posicion conocida, aunque el equipo no haya
+// mandado nada nuevo; sin esto el rastro repetia el mismo punto cada 15 s.
+var ultimoFixEscrito = {};
+
 function ciclo() {
   Promise.all([traccar.obtenerDispositivos(), traccar.obtenerPosiciones(), obtenerAsignacionesHoy(db)])
     .then(function (resultados) {
@@ -27,14 +32,21 @@ function ciclo() {
       var tareas = posiciones.map(function (posicion) {
         var imei = idAImei[posicion.deviceId];
         if (!imei) return Promise.resolve();
+        if (!esPosicionUtil(posicion)) {
+          log('Posicion descartada (invalida o 0,0) de ' + imei + ' fix ' + posicion.fixTime);
+          return Promise.resolve();
+        }
         var datos = mapearPosicion(posicion);
 
         var tareaVehiculo = escribirEstadoVehiculo(db, imei, datos)
           .catch(function (e) { log('ERROR escribiendo vehiculos/' + imei + ': ' + e.message); });
 
         var asignacion = asignaciones[imei];
-        var tareaJornada = asignacion
+        var claveFix = asignacion ? asignacion.jornadaId + '|' + datos.timestamp : null;
+        var esNueva = asignacion && ultimoFixEscrito[imei] !== claveFix;
+        var tareaJornada = esNueva
           ? escribirGpsJornada(db, asignacion.jornadaId, asignacion.chofer, imei, datos)
+              .then(function () { ultimoFixEscrito[imei] = claveFix; })
               .catch(function (e) { log('ERROR escribiendo gps/' + asignacion.jornadaId + ': ' + e.message); })
           : Promise.resolve();
 
