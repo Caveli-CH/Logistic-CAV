@@ -54,6 +54,8 @@ async function run() {
   // para no arriesgar el limite de 1MB por documento de Firestore.
   var puntoRastro = llamada.datos.rastro.elements[0];
   assert.deepStrictEqual(Object.keys(puntoRastro).sort(), ['lat', 'lng', 'ts']);
+  // El ts del rastro es la hora real del GPS, no la hora de escritura del puente.
+  assert.strictEqual(puntoRastro.ts, '2026-08-27T12:00:00.000Z');
 
   console.log('OK: firestoreWriter');
 }

@@ -24,4 +24,14 @@ function mapearPosicion(position) {
   return salida;
 }
 
-module.exports = { mapearPosicion: mapearPosicion, CAMPOS_CONOCIDOS: CAMPOS_CONOCIDOS };
+// Una posicion sirve solo si Traccar la marca valida y no esta en 0,0.
+// Los puntos 0,0 (el equipo sin senal) hacian saltar la camioneta miles de km en el mapa.
+function esPosicionUtil(position) {
+  if (!position || position.valid === false) return false;
+  var lat = position.latitude, lng = position.longitude;
+  if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return false;
+  if (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) return false;
+  return true;
+}
+
+module.exports = { mapearPosicion: mapearPosicion, esPosicionUtil: esPosicionUtil, CAMPOS_CONOCIDOS: CAMPOS_CONOCIDOS };

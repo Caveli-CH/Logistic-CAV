@@ -1,5 +1,5 @@
 var assert = require('assert');
-var { mapearPosicion } = require('../src/mapPosition');
+var { mapearPosicion, esPosicionUtil } = require('../src/mapPosition');
 
 function run() {
   var posicion = {
@@ -23,6 +23,14 @@ function run() {
   var sinAtributos = mapearPosicion({ latitude: 0, longitude: 0, fixTime: 'x', attributes: {} });
   assert.strictEqual(sinAtributos.ignition, null);
   assert.deepStrictEqual(sinAtributos.sensores, {});
+
+  // Posiciones utiles y descartadas
+  assert.strictEqual(esPosicionUtil({ latitude: -33.0, longitude: -71.2, valid: true }), true);
+  assert.strictEqual(esPosicionUtil({ latitude: -33.0, longitude: -71.2 }), true);
+  assert.strictEqual(esPosicionUtil({ latitude: 0, longitude: 0, valid: true }), false);
+  assert.strictEqual(esPosicionUtil({ latitude: -33.0, longitude: -71.2, valid: false }), false);
+  assert.strictEqual(esPosicionUtil({ latitude: null, longitude: -71.2 }), false);
+  assert.strictEqual(esPosicionUtil(null), false);
 
   console.log('OK: mapPosition');
 }
